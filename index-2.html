@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>El Sabor de Mamá</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Libre+Franklin:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --board:#1c1a17;
+    --board-2:#242019;
+    --paper:#f2e9d8;
+    --paper-2:#e8dcc4;
+    --ink:#241f18;
+    --ink-soft:#5a5347;
+    --pending:#e3a72e;
+    --ready:#3a6ea5;
+    --done:#5b7a52;
+    --stamp:#c1503a;
+    --line:#cdbfa0;
+    --warn:#b3352b;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    background:var(--board);
+    font-family:'Libre Franklin',sans-serif;
+    color:var(--paper);
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+  .display{font-family:'Bebas Neue',sans-serif; letter-spacing:0.04em;}
+  .mono{font-family:'Space Mono',monospace;}
+
+  /* ---- top switch ---- */
+  .rail-top{
+    position:sticky; top:0; z-index:20;
+    background:var(--board);
+    padding:14px 16px 10px;
+    border-bottom:1px solid #35302a;
+  }
+  .brand{
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin-bottom:10px;
+  }
+  .brand h1{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:21px; margin:0; letter-spacing:0.03em;
+    color:var(--paper); white-space:nowrap;
+  }
+  .brand span{
+    font-family:'Space Mono',monospace;
+    font-size:11px; color:#9a9184;
+  }
+  .sync-dot{
+    display:inline-block; width:7px; height:7px; border-radius:50%;
+    background:var(--done); margin-right:6px; vertical-align:middle;
+    transition:background .3s ease;
+  }
+  .sync-dot.stale{ background:var(--pending); }
+  .switch{
+    display:flex; background:var(--board-2); border-radius:10px; padding:4px;
+    border:1px solid #3a352d;
+  }
+  .switch button{
+    flex:1; padding:10px 4px; border:none; background:transparent; color:#9a9184;
+    font-family:'Bebas Neue',sans-serif; font-size:13.5px; letter-spacing:0.03em;
+    border-radius:7px; cursor:pointer; transition:all .2s ease;
+  }
+  .switch button.active{
+    background:var(--paper); color:var(--ink);
+  }
+
+  main{padding:16px; max-width:560px; margin:0 auto; padding-bottom:60px;}
+
+  /* ---- SEND FORM (order slip) ---- */
+  .slip{
+    background:var(--paper);
+    color:var(--ink);
+    border-radius:2px;
+    padding:22px 18px 18px;
+    position:relative;
+    box-shadow:0 14px 30px rgba(0,0,0,0.35);
+  }
+  .slip::before{
+    content:"";
+    position:absolute; top:-1px; left:0; right:0; height:10px;
+    background-image: radial-gradient(circle at 8px 0, transparent 5px, var(--board) 5.5px);
+    background-size: 16px 10px;
+    background-repeat: repeat-x;
+  }
+  .slip label{
+    display:block; font-family:'Space Mono',monospace; font-size:11px;
+    text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-soft);
+    margin:16px 0 6px;
+  }
+  .slip label:first-of-type{margin-top:6px;}
+  .slip input[type=text], .slip textarea{
+    width:100%; border:none; border-bottom:2px solid var(--line);
+    background:transparent; font-family:'Libre Franklin',sans-serif;
+    font-size:16px; padding:6px 2px; color:var(--ink); outline:none;
+  }
+  .slip input[type=text]:focus, .slip textarea:focus{border-bottom-color:var(--stamp);}
+  .slip textarea{resize:vertical; min-height:44px; font-size:14px;}
+
+  .hint{font-family:'Space Mono',monospace; font-size:11px; color:var(--ink-soft); margin:2px 0 8px;}
+
+  /* fav chips */
+  .fav-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:6px; }
+  .fav-chip{
+    display:flex; align-items:center; gap:8px;
+    background:var(--paper-2); border:1.5px solid var(--line); border-radius:10px;
+    padding:8px 10px; font-family:'Space Mono',monospace; font-size:12.5px; color:var(--ink);
+  }
+  .fav-chip.out{ opacity:0.55; }
+  .fav-main{
+    flex:1; display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none;
+    padding:4px 2px; border-radius:6px;
+  }
+  .fav-main:active{ background:rgba(0,0,0,0.06); }
+  .fav-main .fav-name{ font-family:'Libre Franklin',sans-serif; font-weight:600; font-size:13.5px; flex:1; }
+  .fav-main .fav-price{ font-family:'Space Mono',monospace; font-size:12px; color:var(--ink-soft); }
+  .stock-tag{
+    font-size:10.5px; font-weight:700; padding:1px 6px; border-radius:9px; background:var(--done); color:#eafbe6;
+    white-space:nowrap;
+  }
+  .stock-tag.low{ background:var(--warn); color:#fdeceb; }
+  .fav-qty{
+    display:flex; align-items:center; gap:4px; background:var(--paper); border:1.5px solid var(--line);
+    border-radius:8px; padding:3px 4px;
+  }
+  .fav-qty-input{
+    width:30px; text-align:center; border:none; background:transparent;
+    font-family:'Space Mono',monospace; font-size:13px; color:var(--ink); outline:none;
+  }
+  .fav-qty-input::-webkit-inner-spin-button, .fav-qty-input::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
+  .fav-qty-add{
+    background:var(--ink); color:var(--paper); border:none; border-radius:6px;
+    width:26px; height:26px; font-size:14px; cursor:pointer; line-height:1;
+  }
+  .fav-qty-add:active{ transform:scale(0.94); }
+
+  /* mini hotcakes box */
+  .hc-box{
+    border:1.5px dashed var(--line); border-radius:8px; padding:12px; margin:14px 0 6px;
+  }
+  .hc-title{ font-family:'Bebas Neue',sans-serif; font-size:17px; margin-bottom:8px; }
+  .hc-check{ display:flex; align-items:center; gap:8px; margin-bottom:6px; font-family:'Space Mono',monospace; font-size:13px; }
+  .hc-check input{ width:17px; height:17px; }
+  .hc-row-bottom{ display:flex; align-items:center; justify-content:space-between; margin-top:10px; }
+  .hc-add-btn{
+    background:var(--ink); color:var(--paper); border:none; border-radius:6px;
+    padding:9px 14px; font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:0.04em; cursor:pointer;
+  }
+
+  .prod-row{
+    display:flex; gap:8px; align-items:center; margin-bottom:8px;
+  }
+  .prod-row input.pname{flex:1;}
+  .qty{
+    display:flex; align-items:center; border:2px solid var(--line); border-radius:6px; overflow:hidden;
+  }
+  .qty button{
+    background:var(--paper-2); border:none; width:30px; height:30px; font-size:16px; cursor:pointer; color:var(--ink);
+  }
+  .qty input.qtyval{
+    width:32px; text-align:center; font-family:'Space Mono',monospace; font-size:14px;
+    border:none; background:transparent; color:var(--ink); outline:none;
+  }
+  .qty input.qtyval::-webkit-inner-spin-button, .qty input.qtyval::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
+  .rm-row{
+    background:none; border:none; color:var(--stamp); font-size:18px; cursor:pointer; padding:0 4px;
+  }
+  .add-prod{
+    margin-top:4px; background:none; border:1.5px dashed var(--ink-soft); color:var(--ink-soft);
+    font-family:'Space Mono',monospace; font-size:12px; padding:8px 10px; border-radius:6px;
+    cursor:pointer; width:100%;
+  }
+  .send-btn{
+    width:100%; margin-top:22px; padding:14px; border:none; border-radius:6px;
+    background:var(--stamp); color:#fdf5ec; font-family:'Bebas Neue',sans-serif;
+    font-size:20px; letter-spacing:0.06em; cursor:pointer;
+  }
+  .send-btn:active{transform:scale(0.98);}
+  .toast{
+    position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px);
+    background:var(--done); color:#fff; padding:10px 18px; border-radius:20px;
+    font-family:'Space Mono',monospace; font-size:13px; opacity:0; transition:all .25s ease;
+    pointer-events:none; z-index:50; max-width:80%; text-align:center;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  /* ---- RECEIVE VIEW (ticket rail) ---- */
+  .rail-header{
+    display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;
+  }
+  .rail-header h2{
+    font-family:'Bebas Neue',sans-serif; font-size:20px; margin:0; color:#c8bfae; letter-spacing:0.04em;
+  }
+  .subtabs{ display:flex; gap:8px; margin-bottom:14px; }
+  .subtabs button{
+    flex:1; background:var(--board-2); border:1px solid #3a352d; color:#9a9184;
+    font-family:'Space Mono',monospace; font-size:11.5px; padding:8px; border-radius:8px; cursor:pointer;
+  }
+  .subtabs button.active{ background:var(--paper); color:var(--ink); border-color:var(--paper); }
+  .empty{
+    text-align:center; color:#6f685c; font-family:'Space Mono',monospace; font-size:13px;
+    padding:60px 20px; border:1px dashed #3a352d; border-radius:8px;
+  }
+  .ticket{
+    background:var(--paper); color:var(--ink); border-radius:2px; padding:16px 16px 14px;
+    margin-bottom:16px; position:relative; box-shadow:0 8px 18px rgba(0,0,0,0.3);
+    animation: pin-in .35s ease;
+  }
+  @keyframes pin-in{ from{opacity:0; transform:translateY(-14px);} to{opacity:1; transform:translateY(0);} }
+  .ticket::before{
+    content:""; position:absolute; top:-9px; left:50%; transform:translateX(-50%);
+    width:34px; height:14px; background:#8a8377; border-radius:2px;
+    box-shadow:0 2px 4px rgba(0,0,0,0.4);
+  }
+  .ticket.done{opacity:0.7;}
+  .ticket.cancelled{opacity:0.7;}
+  .ticket.cancelled .t-client{ text-decoration:line-through; }
+  .t-top{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;}
+  .t-client{font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:0.03em;}
+  .t-time{font-family:'Space Mono',monospace; font-size:11px; color:var(--ink-soft);}
+  .t-items{font-family:'Space Mono',monospace; font-size:13.5px; line-height:1.75; border-top:1px dashed var(--line); border-bottom:1px dashed var(--line); padding:8px 0; margin:8px 0;}
+  .t-items div{display:flex; justify-content:space-between;}
+  .t-notes{font-size:13px; color:var(--ink-soft); font-style:italic; margin-bottom:10px;}
+  .t-reason{font-size:12.5px; color:var(--warn); margin-bottom:10px; font-family:'Space Mono',monospace;}
+  .t-bottom{display:flex; justify-content:space-between; align-items:center;}
+  .badge{
+    font-family:'Space Mono',monospace; font-size:10px; padding:3px 8px; border-radius:10px;
+    text-transform:uppercase; letter-spacing:0.05em;
+  }
+  .badge.pend{background:var(--pending); color:#2a1f04;}
+  .badge.ready{background:var(--ready); color:#eaf2fb;}
+  .badge.deliv{background:var(--done); color:#eafbe6;}
+  .badge.cancel{background:var(--warn); color:#fdeceb;}
+  .t-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .edit-btn, .cancel-btn, .ready-btn{
+    border:none; border-radius:6px; padding:8px 12px; font-family:'Bebas Neue',sans-serif;
+    font-size:13.5px; letter-spacing:0.03em; cursor:pointer;
+  }
+  .ready-btn{ background:var(--ink); color:var(--paper); flex:1; }
+  .edit-btn{ background:var(--paper-2); color:var(--ink); border:1.5px solid var(--line); }
+  .cancel-btn{ background:none; color:var(--warn); border:1.5px solid var(--warn); }
+  .stamp-mark{
+    position:absolute; top:38%; right:14px; transform:rotate(-16deg);
+    border:3px solid var(--stamp); color:var(--stamp); font-family:'Bebas Neue',sans-serif;
+    font-size:20px; padding:2px 10px; letter-spacing:0.08em; opacity:0.85; border-radius:4px;
+  }
+
+  /* edit form (inline, inside a ticket) */
+  .edit-form label{
+    display:block; font-family:'Space Mono',monospace; font-size:10px; text-transform:uppercase;
+    letter-spacing:0.07em; color:var(--ink-soft); margin:10px 0 4px;
+  }
+  .edit-form label:first-of-type{ margin-top:2px; }
+  .edit-form input[type=text], .edit-form textarea{
+    width:100%; border:none; border-bottom:2px solid var(--line); background:transparent;
+    font-family:'Libre Franklin',sans-serif; font-size:14.5px; padding:5px 2px; color:var(--ink); outline:none;
+  }
+  .edit-form textarea{ min-height:38px; font-size:13px; resize:vertical; }
+  .edit-prod-row{ display:flex; gap:6px; align-items:center; margin-bottom:6px; }
+  .edit-prod-row input.epname{
+    flex:1; border:none; border-bottom:2px solid var(--line); background:transparent;
+    font-family:'Libre Franklin',sans-serif; font-size:14px; padding:4px 2px; color:var(--ink); outline:none;
+  }
+  .edit-add-prod{
+    margin-top:2px; background:none; border:1.5px dashed var(--ink-soft); color:var(--ink-soft);
+    font-family:'Space Mono',monospace; font-size:11px; padding:6px 8px; border-radius:6px;
+    cursor:pointer; width:100%;
+  }
+  .edit-actions{ display:flex; gap:8px; margin-top:14px; }
+  .edit-save{
+    flex:1; background:var(--stamp); color:#fdf5ec; border:none; border-radius:6px;
+    padding:10px; font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:0.04em; cursor:pointer;
+  }
+  .edit-cancel{
+    flex:1; background:var(--paper-2); color:var(--ink); border:1.5px solid var(--line); border-radius:6px;
+    padding:10px; font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:0.04em; cursor:pointer;
+  }
+
+  /* ---- INVENTORY VIEW ---- */
+  .inv-add{
+    background:var(--paper); color:var(--ink); border-radius:2px; padding:16px; margin-bottom:16px;
+    box-shadow:0 8px 18px rgba(0,0,0,0.3);
+  }
+  .inv-add-row{ display:flex; gap:8px; margin-bottom:10px; }
+  .inv-add-row input[type=text]{
+    flex:1; border:none; border-bottom:2px solid var(--line); background:transparent;
+    font-family:'Libre Franklin',sans-serif; font-size:15px; padding:6px 2px; color:var(--ink); outline:none;
+  }
+  .inv-add-row input[type=number]{
+    width:64px; border:none; border-bottom:2px solid var(--line); background:transparent;
+    font-family:'Space Mono',monospace; font-size:15px; padding:6px 2px; color:var(--ink); outline:none;
+  }
+  .inv-add button{
+    width:100%; background:var(--ink); color:var(--paper); border:none; border-radius:6px;
+    padding:10px; font-family:'Bebas Neue',sans-serif; font-size:16px; letter-spacing:0.04em; cursor:pointer;
+  }
+  .inv-item{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--paper); color:var(--ink); border-radius:2px; padding:12px 14px;
+    margin-bottom:10px; box-shadow:0 4px 10px rgba(0,0,0,0.25);
+  }
+  .inv-item .inv-name{ font-family:'Libre Franklin',sans-serif; font-weight:600; font-size:14.5px; flex:1 1 40%; }
+  .inv-item .inv-price{ font-family:'Space Mono',monospace; font-size:14px; display:flex; align-items:center; gap:2px; }
+  .inv-item .inv-price input{
+    width:44px; border:none; border-bottom:2px solid var(--line); background:transparent;
+    font-family:'Space Mono',monospace; font-size:14px; padding:2px; color:var(--ink); outline:none;
+  }
+  .inv-item .stock-input{
+    font-family:'Space Mono',monospace; font-weight:700; font-size:15px; width:34px; text-align:center;
+    border:none; background:transparent; color:var(--ink); outline:none;
+  }
+  .inv-item .stock-input.low{ color:var(--warn); }
+  .inv-item .stock-input::-webkit-inner-spin-button, .inv-item .stock-input::-webkit-outer-spin-button{
+    -webkit-appearance:none; margin:0;
+  }
+  .inv-del{ background:none; border:none; color:var(--stamp); font-size:16px; cursor:pointer; }
+
+  .total-box{
+    display:flex; justify-content:space-between; align-items:center;
+    background:var(--paper-2); border:1.5px solid var(--line); border-radius:8px;
+    padding:12px 14px; margin:16px 0 4px;
+  }
+  .total-box .t-label{ font-family:'Space Mono',monospace; font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft); }
+  .total-box .t-amount{ font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:0.03em; }
+  .t-total{
+    display:flex; justify-content:space-between; font-family:'Bebas Neue',sans-serif;
+    font-size:17px; padding-top:6px; border-top:1px dashed var(--line); margin-top:4px;
+  }
+
+  /* ---- CAJA VIEW ---- */
+  .caja-card{
+    background:var(--paper); color:var(--ink); border-radius:2px; padding:18px;
+    margin-bottom:16px; box-shadow:0 8px 18px rgba(0,0,0,0.3);
+  }
+  .caja-card h3{ font-family:'Bebas Neue',sans-serif; font-size:18px; margin:0 0 10px; letter-spacing:0.03em; }
+  .caja-row{ display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed var(--line); font-family:'Space Mono',monospace; font-size:13px; }
+  .caja-row:last-child{ border-bottom:none; }
+  .caja-row .cr-label{ color:var(--ink-soft); }
+  .caja-row .cr-value{ font-weight:700; }
+  .caja-total{ display:flex; justify-content:space-between; align-items:center; margin-top:12px; }
+  .caja-total .ct-label{ font-family:'Space Mono',monospace; font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft); }
+  .caja-total .ct-amount{ font-family:'Bebas Neue',sans-serif; font-size:30px; }
+  .caja-input-row{ margin-top:14px; }
+  .caja-input-row label{ display:block; font-family:'Space Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-soft); margin-bottom:6px; }
+  .caja-input-row input{
+    width:100%; border:none; border-bottom:2px solid var(--line); background:transparent;
+    font-family:'Bebas Neue',sans-serif; font-size:22px; padding:6px 2px; color:var(--ink); outline:none;
+  }
+  .diff-box{
+    margin-top:14px; padding:12px 14px; border-radius:8px; font-family:'Bebas Neue',sans-serif; font-size:18px;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .diff-good{ background:#e2ecdd; color:#3d5636; }
+  .diff-bad{ background:#f5dcd8; color:var(--warn); }
+  .diff-neutral{ background:var(--paper-2); color:var(--ink-soft); font-size:14px; font-family:'Space Mono',monospace; }
+  .cancel-list{ font-family:'Space Mono',monospace; font-size:12.5px; line-height:1.7; }
+  .cancel-list .cl-row{ display:flex; justify-content:space-between; gap:8px; padding:5px 0; border-bottom:1px dashed var(--line); }
+  .cancel-list .cl-row:last-child{ border-bottom:none; }
+  .cancel-list .cl-reason{ color:var(--warn); font-style:italic; }
+</style>
+</head>
+<body>
+
+<div class="rail-top">
+  <div class="brand">
+    <h1>EL SABOR DE MAMÁ</h1>
+    <span id="clock" class="mono"><span class="sync-dot" id="syncDot"></span></span>
+  </div>
+  <div class="switch">
+    <button id="btnSend" class="active">Enviar</button>
+    <button id="btnRecv">Recibir</button>
+    <button id="btnInv">Inventario</button>
+    <button id="btnCaja">Caja</button>
+  </div>
+</div>
+
+<main>
+  <!-- SEND VIEW -->
+  <section id="viewSend">
+    <div class="slip">
+      <label>Cliente</label>
+      <input type="text" id="cliente" placeholder="Nombre del cliente">
+
+      <label>Productos frecuentes</label>
+      <div class="hint">Toca el nombre para agregar 1, o escribe la cantidad y toca ✓</div>
+      <div id="favList" class="fav-list"></div>
+
+      <div class="hc-box">
+        <div class="hc-title">Mini hotcakes</div>
+        <label class="hc-check"><input type="checkbox" id="hcCajeta"> Cajeta</label>
+        <label class="hc-check"><input type="checkbox" id="hcMaple"> Maple</label>
+        <label class="hc-check"><input type="checkbox" id="hcLechera"> Lechera</label>
+        <label class="hc-check"><input type="checkbox" id="hcJalea"> Jalea de fresa</label>
+        <div class="hc-row-bottom">
+          <div class="qty">
+            <button type="button" id="hcDec">−</button>
+            <span id="hcQty">1</span>
+            <button type="button" id="hcInc">+</button>
+          </div>
+          <button type="button" class="hc-add-btn" id="hcAddBtn">+ agregar mini hotcakes</button>
+        </div>
+      </div>
+
+      <label>Productos del pedido</label>
+      <div class="hint">Con +/− o escribiendo el número directo</div>
+      <div id="prodList"></div>
+      <button class="add-prod" id="addProd">+ agregar otro producto</button>
+
+      <div class="total-box">
+        <span class="t-label">Total a cobrar</span>
+        <span class="t-amount" id="totalAmount">$0</span>
+      </div>
+
+      <label>Notas</label>
+      <textarea id="notas" placeholder="Sin cebolla, para llevar, etc."></textarea>
+
+      <button class="send-btn" id="sendBtn">Enviar comanda</button>
+    </div>
+  </section>
+
+  <!-- RECEIVE VIEW -->
+  <section id="viewRecv" style="display:none;">
+    <div class="rail-header">
+      <h2 id="pendCount">0 pendientes</h2>
+    </div>
+    <div class="subtabs">
+      <button id="subActivas" class="active">Activas</button>
+      <button id="subHistorial">Historial del día</button>
+    </div>
+    <div id="ticketList"></div>
+  </section>
+
+  <!-- INVENTORY VIEW -->
+  <section id="viewInv" style="display:none;">
+    <div class="inv-add">
+      <div class="inv-add-row">
+        <input type="text" id="invName" placeholder="Nombre del producto">
+        <input type="number" id="invPrice" min="0" value="25" title="Precio">
+        <input type="number" id="invStock" min="0" value="0" title="Existencias">
+      </div>
+      <div class="hint" style="margin-bottom:8px;">Precio ($) y existencias iniciales</div>
+      <button id="invAddBtn">+ agregar producto al inventario</button>
+    </div>
+    <div id="invList"></div>
+  </section>
+
+  <!-- CAJA VIEW -->
+  <section id="viewCaja" style="display:none;">
+    <div class="caja-card">
+      <h3>Corte de caja de hoy</h3>
+      <div class="caja-row"><span class="cr-label">Comandas entregadas</span><span class="cr-value" id="cajaCountEntregadas">0</span></div>
+      <div class="caja-row"><span class="cr-label">Comandas pendientes / en curso</span><span class="cr-value" id="cajaCountActivas">0</span></div>
+      <div class="caja-row"><span class="cr-label">Comandas canceladas</span><span class="cr-value" id="cajaCountCanceladas">0</span></div>
+      <div class="caja-total">
+        <span class="ct-label">Total vendido (entregado)</span>
+        <span class="ct-amount" id="cajaTotalVendido">$0</span>
+      </div>
+      <div class="caja-input-row">
+        <label>Efectivo contado en caja</label>
+        <input type="number" id="cajaContado" min="0" placeholder="0">
+      </div>
+      <div class="diff-box diff-neutral" id="cajaDiffBox">Escribe el efectivo contado para comparar</div>
+    </div>
+
+    <div class="caja-card">
+      <h3>Retiros de hoy</h3>
+      <div class="hint" style="margin-top:-4px;">Cuando saques dinero de lo vendido (para comprar algo, etc.), regístralo aquí</div>
+      <div class="caja-input-row">
+        <label>Monto retirado</label>
+        <input type="number" id="retiroMonto" min="0" placeholder="0">
+      </div>
+      <div class="caja-input-row">
+        <label>¿Para qué fue?</label>
+        <input type="text" id="retiroMotivo" placeholder="Ej. compré hielo">
+      </div>
+      <button id="retiroAddBtn" style="width:100%; margin-top:12px; background:var(--ink); color:var(--paper); border:none; border-radius:6px; padding:10px; font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:0.04em; cursor:pointer;">+ registrar retiro</button>
+      <div class="cancel-list" id="retiroList" style="margin-top:12px;"><span class="mono" style="color:var(--ink-soft);">Sin retiros hoy.</span></div>
+    </div>
+
+    <div class="caja-card">
+      <h3>Ventas — semana y mes</h3>
+      <div class="hint" style="margin-top:-4px;">Comparado contra el periodo anterior, para ver el crecimiento. Es venta total entregada, no descuenta costos.</div>
+      <div class="caja-row"><span class="cr-label">Esta semana</span><span class="cr-value" id="cajaSemana">$0</span></div>
+      <div class="caja-row"><span class="cr-label">Semana pasada</span><span class="cr-value" id="cajaSemanaPrev">$0</span></div>
+      <div class="caja-row"><span class="cr-label">Cambio</span><span class="cr-value" id="cajaSemanaCambio">—</span></div>
+      <div class="caja-row" style="border-top:2px solid var(--line); margin-top:6px; padding-top:12px;"><span class="cr-label">Este mes</span><span class="cr-value" id="cajaMes">$0</span></div>
+      <div class="caja-row"><span class="cr-label">Mes pasado</span><span class="cr-value" id="cajaMesPrev">$0</span></div>
+      <div class="caja-row"><span class="cr-label">Cambio</span><span class="cr-value" id="cajaMesCambio">—</span></div>
+    </div>
+
+    <div class="caja-card">
+      <h3>Canceladas hoy (revisa los motivos)</h3>
+      <div class="cancel-list" id="cajaCancelList"><span class="mono" style="color:var(--ink-soft);">Sin cancelaciones hoy.</span></div>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------------- conexión a Firebase Realtime Database ----------------
+const FIREBASE_URL = 'https://el-sabor-de-mama-default-rtdb.firebaseio.com';
+
+function rtdbPath(key, shared){
+  const scope = shared ? 'shared' : 'private';
+  return `${FIREBASE_URL}/data/${scope}/${encodeURIComponent(key)}.json`;
+}
+
+window.storage = {
+  async get(key, shared){
+    const res = await fetch(rtdbPath(key, shared));
+    if(!res.ok) throw new Error('storage get failed');
+    const data = await res.json();
+    if(data === null || data === undefined) throw new Error('key not found');
+    return { key, value: data, shared };
+  },
+  async set(key, value, shared){
+    const res = await fetch(rtdbPath(key, shared), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(value)
+    });
+    if(!res.ok) return null;
+    return { key, value, shared };
+  },
+  async delete(key, shared){
+    const res = await fetch(rtdbPath(key, shared), { method: 'DELETE' });
+    if(!res.ok) return null;
+    return { key, deleted: true, shared };
+  },
+  async list(prefix, shared){
+    const scope = shared ? 'shared' : 'private';
+    const res = await fetch(`${FIREBASE_URL}/data/${scope}.json?shallow=true`);
+    if(!res.ok) return { keys: [], shared };
+    const data = await res.json();
+    if(!data) return { keys: [], shared };
+    const keys = Object.keys(data)
+      .map(k => decodeURIComponent(k))
+      .filter(k => prefix ? k.startsWith(prefix) : true);
+    return { keys, shared };
+  }
+};
+
+// ---------------- product order rows ----------------
+let prodIdSeq = 0;
+function addProdRow(name='', qty=1){
+  const id = 'p'+(prodIdSeq++);
+  const row = document.createElement('div');
+  row.className = 'prod-row';
+  row.dataset.id = id;
+  row.innerHTML = `
+    <input type="text" class="pname" placeholder="Producto" value="${escapeAttr(name)}">
+    <div class="qty">
+      <button type="button" class="dec">−</button>
+      <input type="number" class="qtyval" min="1" value="${qty}">
+      <button type="button" class="inc">+</button>
+    </div>
+    <button type="button" class="rm-row">✕</button>
+  `;
+  row.querySelector('.inc').onclick = () => {
+    const s = row.querySelector('.qtyval');
+    s.value = (parseInt(s.value)||0)+1;
+    updateTotalDisplay();
+  };
+  row.querySelector('.dec').onclick = () => {
+    const s = row.querySelector('.qtyval');
+    const v = parseInt(s.value)||1;
+    if(v>1) s.value = v-1;
+    updateTotalDisplay();
+  };
+  row.querySelector('.qtyval').addEventListener('change', () => {
+    const s = row.querySelector('.qtyval');
+    if(!s.value || parseInt(s.value)<1) s.value = 1;
+    updateTotalDisplay();
+  });
+  row.querySelector('.rm-row').onclick = () => {
+    if(document.querySelectorAll('.prod-row').length>1){
+      row.remove();
+    } else {
+      // es el único producto: lo limpiamos en vez de dejar el pedido sin filas
+      row.querySelector('.pname').value = '';
+      row.querySelector('.qtyval').value = 1;
+    }
+    updateTotalDisplay();
+  };
+  row.querySelector('.pname').addEventListener('blur', () => updateTotalDisplay());
+  document.getElementById('prodList').appendChild(row);
+  updateTotalDisplay();
+  return row;
+}
+// Adds a product, merging into an existing row of the same name if present
+function addOrIncrementProdRow(name, qty){
+  qty = Math.max(1, parseInt(qty)||1);
+  const rows = Array.from(document.querySelectorAll('.prod-row'));
+  const existing = rows.find(r => r.querySelector('.pname').value.trim().toLowerCase() === name.toLowerCase());
+  if(existing){
+    const s = existing.querySelector('.qtyval');
+    s.value = (parseInt(s.value)||0) + qty;
+  } else {
+    const emptyRow = rows.find(r => !r.querySelector('.pname').value.trim());
+    if(emptyRow){
+      emptyRow.querySelector('.pname').value = name;
+      emptyRow.querySelector('.qtyval').value = qty;
+    } else {
+      addProdRow(name, qty);
+    }
+  }
+  updateTotalDisplay();
+}
+function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+addProdRow();
+document.getElementById('addProd').onclick = () => addProdRow();
+
+// ---------------- retry helper (para fallas de conexión pasajeras) ----------------
+async function withRetry(fn, retries=2, delayMs=500){
+  let lastErr;
+  for(let i=0; i<=retries; i++){
+    try{ return await fn(); }
+    catch(e){ lastErr = e; if(i<retries) await new Promise(r=>setTimeout(r, delayMs)); }
+  }
+  throw lastErr;
+}
+
+// ---------------- toast ----------------
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+// ---------------- clock ----------------
+function tickClock(){
+  const now = new Date();
+  document.getElementById('clock').innerHTML =
+    '<span class="sync-dot" id="syncDot"></span>' +
+    now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+}
+tickClock(); setInterval(tickClock, 15000);
+
+// ---------------- favorites / inventory (shared across every device) ----------------
+const FAV_KEY = 'favoritos';
+const DEFAULT_FAVS = [
+  {name:'Gelatina de Oreo', price:25},
+  {name:'Gelatina arcoíris', price:25},
+  {name:'Gelatina de café', price:25},
+  {name:'Gelatina de confeti', price:15},
+  {name:'Carlota de limón', price:25},
+  {name:'Carlota de durazno', price:25},
+  {name:'Carlota de fresa', price:25},
+  {name:'Flan', price:25}
+];
+const LOW_STOCK = 3;
+const HOTCAKES_PRICE = 25;
+let favsCache = null;
+
+async function loadFavs(){
+  try{
+    const r = await window.storage.get(FAV_KEY, true);
+    if(r && r.value){
+      const parsed = JSON.parse(r.value);
+      favsCache = parsed.map(f => typeof f === 'string' ? {name:f, stock:0, price:25} : {price:25, ...f});
+      return favsCache;
+    }
+    throw new Error('empty');
+  }catch(e){
+    if(favsCache) return favsCache;
+    const initial = DEFAULT_FAVS.map(f => ({name:f.name, stock:0, price:f.price}));
+    await saveFavs(initial);
+    return initial;
+  }
+}
+async function saveFavs(list){
+  favsCache = list;
+  try{
+    await window.storage.set(FAV_KEY, JSON.stringify(list), true);
+  }catch(e){ showToast('No se pudo guardar el inventario'); }
+}
+
+async function renderFavs(){
+  const favs = await loadFavs();
+  const el = document.getElementById('favList');
+  el.innerHTML = '';
+  if(favs.length === 0){
+    el.innerHTML = '<span class="mono" style="font-size:12px; color:var(--ink-soft);">Agrega productos desde la pestaña Inventario.</span>';
+    return;
+  }
+  favs.forEach((f) => {
+    const chip = document.createElement('div');
+    const low = f.stock <= LOW_STOCK;
+    chip.className = 'fav-chip' + (f.stock<=0 ? ' out' : '');
+    chip.innerHTML = `
+      <div class="fav-main">
+        <span class="fav-name">${escapeHtml(f.name)}</span>
+        <span class="fav-price">$${f.price}</span>
+        <span class="stock-tag${low?' low':''}">${f.stock}</span>
+      </div>
+      <div class="fav-qty">
+        <input type="number" class="fav-qty-input" min="1" value="1">
+        <button type="button" class="fav-qty-add">✓</button>
+      </div>
+    `;
+    chip.querySelector('.fav-main').onclick = () => {
+      addOrIncrementProdRow(f.name, 1);
+      showToast(f.name + ' agregado (1)');
+    };
+    const qtyInput = chip.querySelector('.fav-qty-input');
+    qtyInput.onclick = (ev) => ev.stopPropagation();
+    chip.querySelector('.fav-qty-add').onclick = (ev) => {
+      ev.stopPropagation();
+      const n = Math.max(1, parseInt(qtyInput.value)||1);
+      addOrIncrementProdRow(f.name, n);
+      showToast(f.name + ' agregado (' + n + ')');
+      qtyInput.value = 1;
+    };
+    el.appendChild(chip);
+  });
+}
+
+function focusedInvName(){
+  const active = document.activeElement;
+  if(!active) return null;
+  const row = active.closest ? active.closest('.inv-item') : null;
+  if(!row) return null;
+  return row.dataset.name || null;
+}
+
+async function renderInv(){
+  const favs = await loadFavs();
+  const skipName = focusedInvName();
+  const el = document.getElementById('invList');
+  el.innerHTML = '';
+  if(favs.length === 0){
+    el.innerHTML = '<div class="empty" style="color:#6f685c;">Aún no tienes productos en el inventario.</div>';
+    return;
+  }
+  favs.forEach((f, i) => {
+    const low = f.stock <= LOW_STOCK;
+    const row = document.createElement('div');
+    row.className = 'inv-item';
+    row.dataset.name = f.name;
+    row.innerHTML = `
+      <div class="inv-name">${escapeHtml(f.name)}</div>
+      <div class="inv-price">$<input type="number" class="price-input" min="0" step="1" value="${f.price}"></div>
+      <div class="qty">
+        <button type="button" class="dec">−</button>
+        <input type="number" class="stock-input${low?' low':''}" min="0" step="1" value="${f.stock}">
+        <button type="button" class="inc">+</button>
+      </div>
+      <button type="button" class="inv-del">✕</button>
+    `;
+    row.querySelector('.price-input').onchange = async (ev) => {
+      const list = await loadFavs();
+      list[i].price = Math.max(0, parseInt(ev.target.value) || 0);
+      await saveFavs(list);
+      renderFavs();
+    };
+    row.querySelector('.stock-input').onchange = async (ev) => {
+      const list = await loadFavs();
+      list[i].stock = Math.max(0, parseInt(ev.target.value) || 0);
+      await saveFavs(list);
+      renderInv(); renderFavs();
+    };
+    row.querySelector('.inc').onclick = async () => {
+      const list = await loadFavs();
+      list[i].stock += 1;
+      await saveFavs(list);
+      renderInv(); renderFavs();
+    };
+    row.querySelector('.dec').onclick = async () => {
+      const list = await loadFavs();
+      list[i].stock = Math.max(0, list[i].stock - 1);
+      await saveFavs(list);
+      renderInv(); renderFavs();
+    };
+    row.querySelector('.inv-del').onclick = async () => {
+      const list = await loadFavs();
+      list.splice(i,1);
+      await saveFavs(list);
+      renderInv(); renderFavs();
+    };
+    el.appendChild(row);
+  });
+  if(skipName){
+    const restored = el.querySelector(`.inv-item[data-name="${CSS.escape(skipName)}"] input`);
+    if(restored) restored.focus();
+  }
+}
+
+document.getElementById('invAddBtn').onclick = async () => {
+  const nameInput = document.getElementById('invName');
+  const stockInput = document.getElementById('invStock');
+  const priceInput = document.getElementById('invPrice');
+  const name = nameInput.value.trim();
+  const stock = Math.max(0, parseInt(stockInput.value) || 0);
+  const price = Math.max(0, parseInt(priceInput.value) || 0);
+  if(!name){ showToast('Escribe un nombre de producto'); return; }
+  const favs = await loadFavs();
+  if(favs.some(f => f.name.toLowerCase() === name.toLowerCase())){
+    showToast('Ese producto ya está en el inventario');
+    return;
+  }
+  favs.push({name, stock, price});
+  await saveFavs(favs);
+  nameInput.value = ''; stockInput.value = '0'; priceInput.value = '25';
+  renderInv(); renderFavs();
+  showToast('Producto agregado');
+};
+
+async function decrementInventoryForOrder(productos){
+  try{
+    const favs = await loadFavs();
+    let changed = false;
+    productos.forEach(p => {
+      const fav = favs.find(f => f.name.toLowerCase() === p.nombre.toLowerCase());
+      if(fav){
+        fav.stock = Math.max(0, fav.stock - p.cantidad);
+        changed = true;
+      }
+    });
+    if(changed){ await saveFavs(favs); renderFavs(); renderInv(); }
+  }catch(e){ /* inventory update is best-effort, don't block the order */ }
+}
+
+async function restoreInventoryForOrder(productos){
+  try{
+    const favs = await loadFavs();
+    let changed = false;
+    productos.forEach(p => {
+      const fav = favs.find(f => f.name.toLowerCase() === p.nombre.toLowerCase());
+      if(fav){
+        fav.stock = fav.stock + p.cantidad;
+        changed = true;
+      }
+    });
+    if(changed){ await saveFavs(favs); renderFavs(); renderInv(); }
+  }catch(e){ /* inventory update is best-effort, don't block the action */ }
+}
+
+async function adjustInventoryForEdit(oldProductos, newProductos){
+  // regresa lo viejo y descuenta lo nuevo, para que el inventario quede como si el pedido
+  // siempre hubiera tenido las cantidades nuevas
+  await restoreInventoryForOrder(oldProductos);
+  await decrementInventoryForOrder(newProductos);
+}
+
+renderFavs();
+
+let invSyncFailed = false;
+async function refreshSharedInventory(){
+  try{
+    if(mode === 'send'){
+      await renderFavs();
+      await updateTotalDisplay();
+    } else if(mode === 'inv'){
+      if(!focusedInvName()) await renderInv();
+    } else {
+      await loadFavs();
+    }
+    if(invSyncFailed){ invSyncFailed = false; }
+    const dot = document.getElementById('syncDot');
+    if(dot) dot.classList.remove('stale');
+  }catch(e){
+    invSyncFailed = true;
+    const dot = document.getElementById('syncDot');
+    if(dot) dot.classList.add('stale');
+  }
+}
+setInterval(refreshSharedInventory, 4000);
+
+// ---------------- pricing / total ----------------
+async function priceForProduct(nombre){
+  if(/^Mini hotcakes/i.test(nombre)) return HOTCAKES_PRICE;
+  const favs = await loadFavs();
+  const fav = favs.find(f => f.name.toLowerCase() === nombre.toLowerCase());
+  return fav ? fav.price : 0;
+}
+async function computeOrderTotal(productos){
+  let total = 0;
+  for(const p of productos){
+    total += (await priceForProduct(p.nombre)) * p.cantidad;
+  }
+  return total;
+}
+async function updateTotalDisplay(){
+  const rows = Array.from(document.querySelectorAll('.prod-row'));
+  const productos = rows.map(r => ({
+    nombre: r.querySelector('.pname').value.trim(),
+    cantidad: parseInt(r.querySelector('.qtyval').value)||1
+  })).filter(p => p.nombre);
+  const total = await computeOrderTotal(productos);
+  document.getElementById('totalAmount').textContent = '$' + total;
+}
+
+// ---------------- mini hotcakes special block ----------------
+let hcQty = 1;
+document.getElementById('hcInc').onclick = () => { hcQty++; document.getElementById('hcQty').textContent = hcQty; };
+document.getElementById('hcDec').onclick = () => { if(hcQty>1){ hcQty--; document.getElementById('hcQty').textContent = hcQty; } };
+document.getElementById('hcAddBtn').onclick = () => {
+  const toppings = [];
+  if(document.getElementById('hcCajeta').checked) toppings.push('cajeta');
+  if(document.getElementById('hcMaple').checked) toppings.push('maple');
+  if(document.getElementById('hcLechera').checked) toppings.push('lechera');
+  if(document.getElementById('hcJalea').checked) toppings.push('jalea de fresa');
+  const name = toppings.length ? `Mini hotcakes (${toppings.join(' + ')})` : 'Mini hotcakes';
+  addOrIncrementProdRow(name, hcQty);
+  showToast('Mini hotcakes agregados al pedido');
+  document.getElementById('hcCajeta').checked = false;
+  document.getElementById('hcMaple').checked = false;
+  document.getElementById('hcLechera').checked = false;
+  document.getElementById('hcJalea').checked = false;
+  hcQty = 1; document.getElementById('hcQty').textContent = '1';
+};
+
+// ---------------- view switching ----------------
+const btnSend = document.getElementById('btnSend');
+const btnRecv = document.getElementById('btnRecv');
+const btnInv = document.getElementById('btnInv');
+const btnCaja = document.getElementById('btnCaja');
+const viewSend = document.getElementById('viewSend');
+const viewRecv = document.getElementById('viewRecv');
+const viewInv = document.getElementById('viewInv');
+const viewCaja = document.getElementById('viewCaja');
+let mode = 'send';
+let recvSubtab = 'activas';
+let pollHandle = null;
+
+btnSend.onclick = () => setMode('send');
+btnRecv.onclick = () => setMode('recv');
+btnInv.onclick = () => setMode('inv');
+btnCaja.onclick = () => setMode('caja');
+
+document.getElementById('subActivas').onclick = () => { recvSubtab='activas'; setSubtabUI(); renderTickets(lastOrders); };
+document.getElementById('subHistorial').onclick = () => { recvSubtab='historial'; setSubtabUI(); renderTickets(lastOrders); };
+function setSubtabUI(){
+  document.getElementById('subActivas').classList.toggle('active', recvSubtab==='activas');
+  document.getElementById('subHistorial').classList.toggle('active', recvSubtab==='historial');
+}
+
+function setMode(m){
+  mode = m;
+  btnSend.classList.toggle('active', m==='send');
+  btnRecv.classList.toggle('active', m==='recv');
+  btnInv.classList.toggle('active', m==='inv');
+  btnCaja.classList.toggle('active', m==='caja');
+  viewSend.style.display = m==='send' ? '' : 'none';
+  viewRecv.style.display = m==='recv' ? '' : 'none';
+  viewInv.style.display = m==='inv' ? '' : 'none';
+  viewCaja.style.display = m==='caja' ? '' : 'none';
+  if(m==='recv'){
+    loadTickets(true);
+    if(!pollHandle) pollHandle = setInterval(()=>loadTickets(false), 3500);
+  } else {
+    if(pollHandle){ clearInterval(pollHandle); pollHandle = null; }
+    editingId = null;
+  }
+  if(m==='inv'){ renderInv(); }
+  if(m==='send'){ renderFavs(); }
+  if(m==='caja'){ loadCaja(); }
+}
+
+// ---------------- send order ----------------
+document.getElementById('sendBtn').onclick = async () => {
+  const cliente = document.getElementById('cliente').value.trim();
+  const notas = document.getElementById('notas').value.trim();
+  const rows = Array.from(document.querySelectorAll('.prod-row'));
+  const productos = rows.map(r => ({
+    nombre: r.querySelector('.pname').value.trim(),
+    cantidad: parseInt(r.querySelector('.qtyval').value)||1
+  })).filter(p => p.nombre);
+
+  if(!cliente){ showToast('Falta el nombre del cliente'); return; }
+  if(productos.length===0){ showToast('Agrega al menos un producto'); return; }
+
+  const id = Date.now() + '-' + Math.random().toString(36).slice(2,7);
+  const total = await computeOrderTotal(productos);
+  const order = { id, cliente, productos, notas, estado:'pendiente', ts: Date.now(), total };
+
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  let sent = false;
+  try{
+    const res = await withRetry(() => window.storage.set('comanda:'+id, JSON.stringify(order), true));
+    if(!res) throw new Error('sin resultado');
+    sent = true;
+  }catch(e){
+    console.error('Error enviando comanda:', e);
+    showToast('No se pudo enviar, revisa tu conexión e intenta de nuevo');
+  }
+  if(sent){
+    await decrementInventoryForOrder(productos);
+    showToast('¡Comanda enviada! Total: $' + total);
+    document.getElementById('cliente').value = '';
+    document.getElementById('notas').value = '';
+    document.getElementById('prodList').innerHTML = '';
+    addProdRow();
+    updateTotalDisplay();
+  }
+  btn.disabled = false; btn.textContent = 'Enviar comanda';
+};
+
+// ---------------- receive / poll / edit ----------------
+let knownIds = new Set();
+let lastOrders = [];
+let editingId = null;
+let editProdSeq = 0;
+
+async function loadTickets(force){
+  if(editingId && !force) return;
+  const listEl = document.getElementById('ticketList');
+  try{
+    const listRes = await window.storage.list('comanda:', true);
+    const keys = (listRes && listRes.keys) ? listRes.keys : [];
+    if(keys.length===0){
+      lastOrders = [];
+      renderTickets([]);
+      return;
+    }
+    const orders = [];
+    for(const k of keys){
+      try{
+        const r = await window.storage.get(k, true);
+        if(r && r.value) orders.push(JSON.parse(r.value));
+      }catch(e){ /* skip missing */ }
+    }
+    orders.sort((a,b)=> b.ts - a.ts);
+    lastOrders = orders;
+    renderTickets(orders);
+  }catch(e){
+    listEl.innerHTML = '<div class="empty">No se pudieron cargar las comandas.</div>';
+  }
+}
+
+function isToday(ts){
+  const d = new Date(ts), n = new Date();
+  return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth() && d.getDate()===n.getDate();
+}
+
+function renderTickets(orders){
+  const listEl = document.getElementById('ticketList');
+  const pending = orders.filter(o=>o.estado==='pendiente').length;
+  document.getElementById('pendCount').textContent = pending + (pending===1 ? ' pendiente' : ' pendientes');
+
+  const visible = orders.filter(o => recvSubtab==='activas'
+    ? (o.estado==='pendiente' || o.estado==='listo')
+    : (o.estado==='entregado' || o.estado==='cancelada') && isToday(o.ts));
+
+  listEl.innerHTML = '';
+  if(visible.length===0){
+    listEl.innerHTML = recvSubtab==='activas'
+      ? '<div class="empty">No hay comandas activas.<br>Aparecerán aquí en cuanto se envíen.</div>'
+      : '<div class="empty">Aún no hay comandas completadas hoy.</div>';
+    return;
+  }
+  for(const o of visible){
+    const isNew = !knownIds.has(o.id);
+    const card = document.createElement('div');
+    let stateClass = '';
+    if(o.estado==='entregado') stateClass = ' done';
+    if(o.estado==='cancelada') stateClass = ' cancelled';
+    card.className = 'ticket' + stateClass;
+    if(!isNew) card.style.animation = 'none';
+    const time = new Date(o.ts).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+
+    if(editingId === o.id){
+      card.innerHTML = buildEditForm(o);
+    } else {
+      let badgeClass = 'pend', badgeText = 'pendiente';
+      if(o.estado==='listo'){ badgeClass='ready'; badgeText='listo'; }
+      if(o.estado==='entregado'){ badgeClass='deliv'; badgeText='entregado'; }
+      if(o.estado==='cancelada'){ badgeClass='cancel'; badgeText='cancelada'; }
+
+      let actionsHtml = '';
+      if(o.estado==='pendiente'){
+        actionsHtml = `<div class="t-actions">
+          <button type="button" class="edit-btn" data-id="${o.id}">Editar</button>
+          <button type="button" class="cancel-btn" data-id="${o.id}">Cancelar</button>
+          <button type="button" class="ready-btn" data-id="${o.id}" data-next="listo">Marcar listo</button>
+        </div>`;
+      } else if(o.estado==='listo'){
+        actionsHtml = `<div class="t-actions">
+          <button type="button" class="edit-btn" data-id="${o.id}">Editar</button>
+          <button type="button" class="cancel-btn" data-id="${o.id}">Cancelar</button>
+          <button type="button" class="ready-btn" data-id="${o.id}" data-next="entregado">Marcar entregado</button>
+        </div>`;
+      }
+
+      const stampText = o.estado==='entregado' ? 'ENTREGADO' : (o.estado==='cancelada' ? 'CANCELADA' : '');
+
+      card.innerHTML = `
+        <div class="t-top">
+          <div class="t-client">${escapeHtml(o.cliente)}</div>
+          <div class="t-time">${time}</div>
+        </div>
+        <div class="t-items">
+          ${o.productos.map(p=>`<div><span>${escapeHtml(p.nombre)}</span><span>x${p.cantidad}</span></div>`).join('')}
+        </div>
+        <div class="t-total"><span>Total</span><span>$${o.total != null ? o.total : ''}</span></div>
+        ${o.notas ? `<div class="t-notes">"${escapeHtml(o.notas)}"</div>` : ''}
+        ${o.motivoCancelacion ? `<div class="t-reason">Motivo: ${escapeHtml(o.motivoCancelacion)}</div>` : ''}
+        <div class="t-bottom">
+          <span class="badge ${badgeClass}">${badgeText}</span>
+        </div>
+        ${actionsHtml}
+        ${stampText ? `<div class="stamp-mark">${stampText}</div>` : ''}
+      `;
+    }
+    listEl.appendChild(card);
+    knownIds.add(o.id);
+  }
+
+  attachTicketHandlers();
+}
+
+function buildEditForm(o){
+  const prodRowsHtml = o.productos.map(p=>buildEditProdRow(p.nombre, p.cantidad)).join('');
+  return `
+    <div class="edit-form" data-id="${o.id}">
+      <label>Cliente</label>
+      <input type="text" class="ecliente" value="${escapeAttr(o.cliente)}">
+      <label>Productos</label>
+      <div id="editProdList-${o.id}">${prodRowsHtml}</div>
+      <button type="button" class="edit-add-prod" data-id="${o.id}">+ agregar producto</button>
+      <label>Notas</label>
+      <textarea class="enotas">${escapeHtml(o.notas||'')}</textarea>
+      <div class="edit-actions">
+        <button type="button" class="edit-cancel">Cancelar</button>
+        <button type="button" class="edit-save" data-id="${o.id}">Guardar cambios</button>
+      </div>
+    </div>
+  `;
+}
+function buildEditProdRow(nombre, cantidad){
+  const rid = 'ep'+(editProdSeq++);
+  return `<div class="edit-prod-row" data-rid="${rid}">
+    <input type="text" class="epname" placeholder="Producto" value="${escapeAttr(nombre)}">
+    <div class="qty">
+      <button type="button" class="dec">−</button>
+      <input type="number" class="qtyval" min="1" value="${cantidad}">
+      <button type="button" class="inc">+</button>
+    </div>
+    <button type="button" class="rm-row">✕</button>
+  </div>`;
+}
+function attachEditProdHandlers(id){
+  const wrap = document.getElementById('editProdList-'+id);
+  if(!wrap) return;
+  wrap.querySelectorAll('.edit-prod-row').forEach(row=>{
+    const incBtn = row.querySelector('.inc');
+    const decBtn = row.querySelector('.dec');
+    const rmBtn = row.querySelector('.rm-row');
+    incBtn.onclick = () => { const s=row.querySelector('.qtyval'); s.value=(parseInt(s.value)||0)+1; };
+    decBtn.onclick = () => { const s=row.querySelector('.qtyval'); const v=parseInt(s.value)||1; if(v>1) s.value=v-1; };
+    rmBtn.onclick = () => { if(wrap.querySelectorAll('.edit-prod-row').length>1) row.remove(); };
+  });
+}
+
+function attachTicketHandlers(){
+  document.querySelectorAll('.edit-btn').forEach(btn=>{
+    btn.onclick = () => { editingId = btn.dataset.id; renderTickets(lastOrders); };
+  });
+  document.querySelectorAll('.edit-cancel').forEach(btn=>{
+    btn.onclick = () => { editingId = null; renderTickets(lastOrders); };
+  });
+  document.querySelectorAll('.edit-add-prod').forEach(btn=>{
+    btn.onclick = () => {
+      const wrap = document.getElementById('editProdList-'+btn.dataset.id);
+      wrap.insertAdjacentHTML('beforeend', buildEditProdRow('',1));
+      attachEditProdHandlers(btn.dataset.id);
+    };
+  });
+  document.querySelectorAll('.edit-save').forEach(btn=>{
+    btn.onclick = () => saveEdit(btn.dataset.id);
+  });
+  document.querySelectorAll('.edit-form').forEach(form=>{
+    attachEditProdHandlers(form.dataset.id);
+  });
+  document.querySelectorAll('.cancel-btn').forEach(btn=>{
+    btn.onclick = async () => {
+      const motivo = window.prompt('¿Por qué se cancela esta comanda? (obligatorio, quedará en el historial)');
+      if(motivo === null) return; // el usuario cerró el cuadro, no se cancela
+      if(!motivo.trim()){ showToast('Escribe un motivo para poder cancelar'); return; }
+      const id = btn.dataset.id;
+      btn.disabled = true;
+      try{
+        const r = await window.storage.get('comanda:'+id, true);
+        if(r && r.value){
+          const o = JSON.parse(r.value);
+          o.estado = 'cancelada';
+          o.motivoCancelacion = motivo.trim();
+          await window.storage.set('comanda:'+id, JSON.stringify(o), true);
+          await restoreInventoryForOrder(o.productos);
+        }
+        showToast('Comanda cancelada y registrada');
+        loadTickets(true);
+      }catch(e){
+        showToast('No se pudo cancelar');
+        btn.disabled = false;
+      }
+    };
+  });
+  document.querySelectorAll('.ready-btn').forEach(btn=>{
+    btn.onclick = async () => {
+      const id = btn.dataset.id;
+      const next = btn.dataset.next || 'listo';
+      btn.disabled = true; btn.textContent = '…';
+      try{
+        const r = await window.storage.get('comanda:'+id, true);
+        if(r && r.value){
+          const o = JSON.parse(r.value);
+          o.estado = next;
+          await window.storage.set('comanda:'+id, JSON.stringify(o), true);
+        }
+        loadTickets(true);
+      }catch(e){
+        showToast('No se pudo actualizar');
+        btn.disabled = false;
+        btn.textContent = next==='entregado' ? 'Marcar entregado' : 'Marcar listo';
+      }
+    };
+  });
+}
+
+async function saveEdit(id){
+  const form = document.querySelector(`.edit-form[data-id="${id}"]`);
+  if(!form) return;
+  const cliente = form.querySelector('.ecliente').value.trim();
+  const notas = form.querySelector('.enotas').value.trim();
+  const rows = Array.from(form.querySelectorAll('.edit-prod-row'));
+  const productos = rows.map(r => ({
+    nombre: r.querySelector('.epname').value.trim(),
+    cantidad: parseInt(r.querySelector('.qtyval').value)||1
+  })).filter(p => p.nombre);
+
+  if(!cliente){ showToast('Falta el nombre del cliente'); return; }
+  if(productos.length===0){ showToast('Agrega al menos un producto'); return; }
+
+  const saveBtn = form.querySelector('.edit-save');
+  saveBtn.disabled = true; saveBtn.textContent = 'Guardando…';
+  try{
+    const r = await window.storage.get('comanda:'+id, true);
+    if(r && r.value){
+      const o = JSON.parse(r.value);
+      const productosViejos = o.productos;
+      o.cliente = cliente;
+      o.notas = notas;
+      o.productos = productos;
+      o.total = await computeOrderTotal(productos);
+      await window.storage.set('comanda:'+id, JSON.stringify(o), true);
+      await adjustInventoryForEdit(productosViejos, productos);
+    }
+    editingId = null;
+    showToast('Comanda actualizada ✓');
+    loadTickets(true);
+  }catch(e){
+    showToast('No se pudo guardar');
+    saveBtn.disabled = false; saveBtn.textContent = 'Guardar cambios';
+  }
+}
+
+// ---------------- caja / corte de caja ----------------
+function startOfWeek(d){
+  const x = new Date(d);
+  const day = (x.getDay()+6)%7; // 0 = lunes
+  x.setHours(0,0,0,0);
+  x.setDate(x.getDate()-day);
+  return x;
+}
+function startOfMonth(d){
+  const x = new Date(d.getFullYear(), d.getMonth(), 1);
+  x.setHours(0,0,0,0);
+  return x;
+}
+
+async function fetchAllOrders(){
+  const listRes = await window.storage.list('comanda:', true);
+  const keys = (listRes && listRes.keys) ? listRes.keys : [];
+  const orders = [];
+  for(const k of keys){
+    try{
+      const r = await window.storage.get(k, true);
+      if(r && r.value) orders.push(JSON.parse(r.value));
+    }catch(e){ /* skip */ }
+  }
+  return orders;
+}
+async function fetchAllRetiros(){
+  const listRes = await window.storage.list('retiro:', true);
+  const keys = (listRes && listRes.keys) ? listRes.keys : [];
+  const retiros = [];
+  for(const k of keys){
+    try{
+      const r = await window.storage.get(k, true);
+      if(r && r.value) retiros.push(JSON.parse(r.value));
+    }catch(e){ /* skip */ }
+  }
+  return retiros;
+}
+
+function pctChange(current, previous){
+  if(previous <= 0){
+    return current > 0 ? '+100%' : '0%';
+  }
+  const pct = ((current-previous)/previous)*100;
+  return (pct>=0?'+':'') + pct.toFixed(0) + '%';
+}
+
+async function loadCaja(){
+  try{
+    const [orders, retiros] = await Promise.all([fetchAllOrders(), fetchAllRetiros()]);
+
+    // --- corte de hoy ---
+    const today = orders.filter(o => isToday(o.ts));
+    const entregadas = today.filter(o => o.estado==='entregado');
+    const activas = today.filter(o => o.estado==='pendiente' || o.estado==='listo');
+    const canceladas = today.filter(o => o.estado==='cancelada');
+    const totalVendido = entregadas.reduce((s,o)=> s + (o.total||0), 0);
+    const retirosHoy = retiros.filter(r => isToday(r.ts));
+    const totalRetiros = retirosHoy.reduce((s,r)=> s + (r.monto||0), 0);
+    const efectivoEsperado = totalVendido - totalRetiros;
+
+    document.getElementById('cajaCountEntregadas').textContent = entregadas.length;
+    document.getElementById('cajaCountActivas').textContent = activas.length;
+    document.getElementById('cajaCountCanceladas').textContent = canceladas.length;
+    document.getElementById('cajaTotalVendido').textContent = '$' + efectivoEsperado + (totalRetiros>0 ? ` (vendido $${totalVendido} − retiros $${totalRetiros})` : '');
+
+    const cancelEl = document.getElementById('cajaCancelList');
+    if(canceladas.length===0){
+      cancelEl.innerHTML = '<span class="mono" style="color:var(--ink-soft);">Sin cancelaciones hoy.</span>';
+    } else {
+      cancelEl.innerHTML = canceladas.map(o => `
+        <div class="cl-row">
+          <span>${escapeHtml(o.cliente)} · $${o.total||0}</span>
+          <span class="cl-reason">${escapeHtml(o.motivoCancelacion || 'sin motivo')}</span>
+        </div>
+      `).join('');
+    }
+
+    const retiroListEl = document.getElementById('retiroList');
+    if(retirosHoy.length===0){
+      retiroListEl.innerHTML = '<span class="mono" style="color:var(--ink-soft);">Sin retiros hoy.</span>';
+    } else {
+      retiroListEl.innerHTML = retirosHoy.slice().sort((a,b)=>b.ts-a.ts).map(r => `
+        <div class="cl-row">
+          <span>$${r.monto} · ${new Date(r.ts).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}</span>
+          <span class="cl-reason">${escapeHtml(r.motivo || 'sin motivo')}</span>
+        </div>
+      `).join('');
+    }
+
+    updateCajaDiff(efectivoEsperado);
+    document.getElementById('cajaContado').oninput = () => updateCajaDiff(efectivoEsperado);
+
+    // --- resumen semanal / mensual (solo ventas entregadas) ---
+    const now = new Date();
+    const wStart = startOfWeek(now);
+    const wPrevStart = new Date(wStart); wPrevStart.setDate(wPrevStart.getDate()-7);
+    const mStart = startOfMonth(now);
+    const mPrevStart = startOfMonth(new Date(now.getFullYear(), now.getMonth()-1, 1));
+
+    const sumEntre = (from, to) => orders
+      .filter(o => o.estado==='entregado' && o.ts >= from.getTime() && o.ts < to.getTime())
+      .reduce((s,o)=> s + (o.total||0), 0);
+
+    const semana = sumEntre(wStart, new Date());
+    const semanaPrev = sumEntre(wPrevStart, wStart);
+    const mes = sumEntre(mStart, new Date());
+    const mesPrev = sumEntre(mPrevStart, mStart);
+
+    document.getElementById('cajaSemana').textContent = '$' + semana;
+    document.getElementById('cajaSemanaPrev').textContent = '$' + semanaPrev;
+    document.getElementById('cajaSemanaCambio').textContent = pctChange(semana, semanaPrev);
+    document.getElementById('cajaMes').textContent = '$' + mes;
+    document.getElementById('cajaMesPrev').textContent = '$' + mesPrev;
+    document.getElementById('cajaMesCambio').textContent = pctChange(mes, mesPrev);
+  }catch(e){
+    showToast('No se pudo cargar el corte de caja');
+  }
+}
+function updateCajaDiff(esperado){
+  const box = document.getElementById('cajaDiffBox');
+  const contadoRaw = document.getElementById('cajaContado').value;
+  if(contadoRaw === ''){
+    box.className = 'diff-box diff-neutral';
+    box.textContent = 'Escribe el efectivo contado para comparar';
+    return;
+  }
+  const contado = parseFloat(contadoRaw) || 0;
+  const diff = contado - esperado;
+  if(Math.abs(diff) < 0.01){
+    box.className = 'diff-box diff-good';
+    box.innerHTML = '<span>Caja cuadrada</span><span>$0</span>';
+  } else if(diff < 0){
+    box.className = 'diff-box diff-bad';
+    box.innerHTML = '<span>Falta dinero</span><span>-$' + Math.abs(diff).toFixed(2) + '</span>';
+  } else {
+    box.className = 'diff-box diff-bad';
+    box.innerHTML = '<span>Sobra dinero</span><span>+$' + diff.toFixed(2) + '</span>';
+  }
+}
+
+document.getElementById('retiroAddBtn').onclick = async () => {
+  const montoInput = document.getElementById('retiroMonto');
+  const motivoInput = document.getElementById('retiroMotivo');
+  const monto = parseFloat(montoInput.value) || 0;
+  const motivo = motivoInput.value.trim();
+  if(monto <= 0){ showToast('Escribe el monto que se retiró'); return; }
+  if(!motivo){ showToast('Escribe para qué fue el retiro'); return; }
+  const id = Date.now() + '-' + Math.random().toString(36).slice(2,7);
+  const retiro = { id, monto, motivo, ts: Date.now() };
+  const btn = document.getElementById('retiroAddBtn');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try{
+    await withRetry(() => window.storage.set('retiro:'+id, JSON.stringify(retiro), true));
+    montoInput.value = ''; motivoInput.value = '';
+    showToast('Retiro registrado');
+    loadCaja();
+  }catch(e){
+    showToast('No se pudo registrar el retiro, intenta de nuevo');
+  }
+  btn.disabled = false; btn.textContent = '+ registrar retiro';
+};
+</script>
+</body>
+</html>
