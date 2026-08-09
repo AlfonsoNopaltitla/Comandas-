@@ -418,6 +418,13 @@
         <span class="t-amount" id="totalAmount">$0</span>
       </div>
 
+      <label>Con cuánto paga <span style="font-weight:normal;opacity:.7;">(opcional)</span></label>
+      <input type="number" id="pagaCon" min="0" placeholder="Deja vacío si no aplica">
+      <div class="total-box" id="cambioBox" style="display:none;">
+        <span class="t-label">Cambio a regresar</span>
+        <span class="t-amount" id="cambioAmount">$0</span>
+      </div>
+
       <label>Notas</label>
       <textarea id="notas" placeholder="Sin cebolla, para llevar, etc."></textarea>
 
@@ -902,7 +909,30 @@ async function updateTotalDisplay(){
   })).filter(p => p.nombre);
   const total = await computeOrderTotal(productos);
   document.getElementById('totalAmount').textContent = '$' + total;
+  updateCambioDisplay(total);
 }
+
+function updateCambioDisplay(total){
+  const pagaConRaw = document.getElementById('pagaCon').value;
+  const cambioBox = document.getElementById('cambioBox');
+  if(pagaConRaw === ''){
+    cambioBox.style.display = 'none';
+    return;
+  }
+  const pagaCon = parseFloat(pagaConRaw);
+  if(isNaN(pagaCon)){
+    cambioBox.style.display = 'none';
+    return;
+  }
+  const cambio = Math.max(0, pagaCon - total);
+  document.getElementById('cambioAmount').textContent = '$' + cambio.toFixed(2).replace(/\.00$/,'');
+  cambioBox.style.display = '';
+}
+
+document.getElementById('pagaCon').addEventListener('input', () => {
+  const totalText = document.getElementById('totalAmount').textContent.replace('$','');
+  updateCambioDisplay(parseFloat(totalText)||0);
+});
 
 // ---------------- mini hotcakes special block ----------------
 let hcQty = 1;
@@ -986,7 +1016,10 @@ document.getElementById('sendBtn').onclick = async () => {
 
   const id = Date.now() + '-' + Math.random().toString(36).slice(2,7);
   const total = await computeOrderTotal(productos);
-  const order = { id, cliente, productos, notas, estado:'pendiente', ts: Date.now(), total };
+  const pagaConRaw = document.getElementById('pagaCon').value;
+  const pagaCon = pagaConRaw !== '' ? parseFloat(pagaConRaw) : null;
+  const cambio = (pagaCon !== null && !isNaN(pagaCon)) ? Math.max(0, pagaCon - total) : null;
+  const order = { id, cliente, productos, notas, estado:'pendiente', ts: Date.now(), total, pagaCon, cambio };
 
   const btn = document.getElementById('sendBtn');
   btn.disabled = true; btn.textContent = 'Enviando…';
@@ -1004,6 +1037,8 @@ document.getElementById('sendBtn').onclick = async () => {
     showToast('¡Comanda enviada! Total: $' + total);
     document.getElementById('cliente').value = '';
     document.getElementById('notas').value = '';
+    document.getElementById('pagaCon').value = '';
+    document.getElementById('cambioBox').style.display = 'none';
     document.getElementById('prodList').innerHTML = '';
     addProdRow();
     updateTotalDisplay();
@@ -1139,6 +1174,8 @@ function renderTickets(orders){
           ${o.productos.map(p=>`<div><span>${escapeHtml(p.nombre)}</span><span>x${p.cantidad}</span></div>`).join('')}
         </div>
         <div class="t-total"><span>Total</span><span>$${o.total != null ? o.total : ''}</span></div>
+        ${(o.pagaCon != null) ? `<div class="t-total"><span>Paga con</span><span>$${o.pagaCon}</span></div>
+        <div class="t-total"><span>Cambio</span><span>$${o.cambio}</span></div>` : ''}
         ${o.notas ? `<div class="t-notes">"${escapeHtml(o.notas)}"</div>` : ''}
         ${o.motivoCancelacion ? `<div class="t-reason">Motivo: ${escapeHtml(o.motivoCancelacion)}</div>` : ''}
         <div class="t-bottom">
