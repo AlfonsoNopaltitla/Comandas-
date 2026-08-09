@@ -1016,6 +1016,27 @@ let knownIds = new Set();
 let lastOrders = [];
 let editingId = null;
 let editProdSeq = 0;
+let firstTicketsLoad = true;
+
+function playNewOrderSound(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const beep = (freq, start, dur) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + start);
+      gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + dur);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + dur + 0.05);
+    };
+    beep(880, 0, 0.15);
+    beep(1175, 0.18, 0.2);
+  }catch(e){ /* audio not available, ignore */ }
+}
 
 async function loadTickets(force){
   if(editingId && !force) return;
@@ -1052,6 +1073,16 @@ function renderTickets(orders){
   const listEl = document.getElementById('ticketList');
   const pending = orders.filter(o=>o.estado==='pendiente').length;
   document.getElementById('pendCount').textContent = pending + (pending===1 ? ' pendiente' : ' pendientes');
+
+  if(!firstTicketsLoad){
+    const nuevasPendientes = orders.filter(o => o.estado==='pendiente' && !knownIds.has(o.id));
+    if(nuevasPendientes.length > 0){
+      playNewOrderSound();
+      const nombre = nuevasPendientes.length === 1 ? nuevasPendientes[0].cliente : `${nuevasPendientes.length} pedidos`;
+      showToast(`Nueva comanda: ${nombre}`);
+    }
+  }
+  firstTicketsLoad = false;
 
   const visible = orders.filter(o => recvSubtab==='activas'
     ? (o.estado==='pendiente' || o.estado==='listo')
