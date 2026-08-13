@@ -6,6 +6,7 @@
 <title>El Sabor de Mamá</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Libre+Franklin:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   :root{
     --board:#1c1a17;
@@ -61,12 +62,12 @@
   .sync-dot.stale{ background:var(--pending); }
   .switch{
     display:flex; background:var(--board-2); border-radius:10px; padding:4px;
-    border:1px solid #3a352d;
+    border:1px solid #3a352d; overflow-x:auto;
   }
   .switch button{
     flex:1; padding:10px 4px; border:none; background:transparent; color:#9a9184;
-    font-family:'Bebas Neue',sans-serif; font-size:23.8px; letter-spacing:0.03em;
-    border-radius:7px; cursor:pointer; transition:all .2s ease;
+    font-family:'Bebas Neue',sans-serif; font-size:20.5px; letter-spacing:0.03em;
+    border-radius:7px; cursor:pointer; transition:all .2s ease; white-space:nowrap;
   }
   .switch button.active{
     background:var(--paper); color:var(--ink);
@@ -364,6 +365,79 @@
   .cancel-list .cl-row{ display:flex; justify-content:space-between; gap:8px; padding:5px 0; border-bottom:1px dashed var(--line); }
   .cancel-list .cl-row:last-child{ border-bottom:none; }
   .cancel-list .cl-reason{ color:var(--warn); font-style:italic; }
+
+  /* ---- MENU VIEW ---- */
+  .inv-item{ flex-wrap:wrap; }
+  .inv-hide-toggle{
+    flex:1 1 100%; display:flex; align-items:center; gap:6px;
+    font-family:'Space Mono',monospace; font-size:16.6px; color:var(--ink-soft);
+    border-top:1px dashed var(--line); margin-top:8px; padding-top:8px;
+  }
+  .inv-hide-toggle input{ width:16px; height:16px; }
+
+  .menu-wrap{
+    background:#fdedf1; color:#5c1f2c; border-radius:16px; padding:24px 18px;
+    position:relative; box-shadow:0 14px 30px rgba(0,0,0,0.4);
+  }
+  .menu-wrap::before{
+    content:""; position:absolute; inset:8px; border:2px solid #e58ba0; border-radius:12px; pointer-events:none;
+  }
+  .menu-header{ text-align:center; padding:6px 10px 14px; }
+  .menu-brand{
+    font-family:'Bebas Neue',sans-serif; font-size:46px; color:#7a2436; line-height:0.95;
+    letter-spacing:0.02em;
+  }
+  .menu-tagline{
+    font-family:'Space Mono',monospace; font-size:15.5px; color:#c05c76; text-transform:uppercase;
+    letter-spacing:0.08em; margin-top:6px;
+  }
+  .menu-banner{
+    background:#e07a95; color:#fff8f8; font-family:'Bebas Neue',sans-serif; font-size:22px;
+    letter-spacing:0.05em; padding:6px 14px; border-radius:8px; margin:16px 0 8px; display:inline-block;
+  }
+  .menu-section{ margin-bottom:6px; }
+  .menu-item{
+    display:flex; justify-content:space-between; align-items:baseline; gap:10px;
+    padding:7px 2px; border-bottom:1px dashed #e6b7c2; font-family:'Libre Franklin',sans-serif;
+  }
+  .menu-item:last-child{ border-bottom:none; }
+  .menu-item .mi-name{ font-weight:600; font-size:18px; }
+  .menu-item .mi-note{ display:block; font-size:12.5px; color:#c05c76; font-weight:400; }
+  .menu-item .mi-price{
+    background:#f9d3dc; color:#7a2436; font-family:'Space Mono',monospace; font-weight:700;
+    padding:2px 10px; border-radius:9px; white-space:nowrap; font-size:15px;
+  }
+  .menu-empty{ font-family:'Space Mono',monospace; font-size:15px; color:#c05c76; padding:6px 2px; }
+  .menu-footer{
+    text-align:center; margin-top:18px; padding-top:14px; border-top:2px dashed #e6b7c2;
+    font-family:'Space Mono',monospace; font-size:13.5px; color:#7a2436;
+  }
+  .menu-footer .mf-phones{ font-weight:700; font-size:17px; margin-top:6px; }
+  .menu-footer .mf-tag{ margin-top:10px; font-style:italic; color:#c05c76; }
+
+  .menu-edit-box{
+    background:var(--paper); color:var(--ink); border-radius:8px; padding:16px; margin-top:16px;
+    box-shadow:0 8px 18px rgba(0,0,0,0.3);
+  }
+  .menu-edit-box h3{ font-family:'Bebas Neue',sans-serif; font-size:26px; margin:0 0 4px; letter-spacing:0.03em; }
+  .menu-edit-box label{
+    display:block; font-family:'Space Mono',monospace; font-size:15px; text-transform:uppercase;
+    letter-spacing:0.06em; color:var(--ink-soft); margin:12px 0 4px;
+  }
+  .menu-edit-box input{
+    width:100%; border:none; border-bottom:2px solid var(--line); background:transparent;
+    font-family:'Libre Franklin',sans-serif; font-size:19px; padding:6px 2px; color:var(--ink); outline:none;
+  }
+  .menu-btn-row{ display:flex; gap:8px; margin-top:16px; }
+  .menu-btn{
+    flex:1; padding:12px; border:none; border-radius:8px; font-family:'Bebas Neue',sans-serif;
+    font-size:20px; letter-spacing:0.04em; cursor:pointer;
+  }
+  .menu-btn.primary{ background:var(--stamp); color:#fdf5ec; }
+  .menu-btn.secondary{ background:var(--paper-2); color:var(--ink); }
+  .menu-shared-note{
+    font-family:'Space Mono',monospace; font-size:13.5px; color:var(--ink-soft); margin-top:8px;
+  }
 </style>
 </head>
 <body>
@@ -378,6 +452,7 @@
     <button id="btnRecv">Recibir</button>
     <button id="btnInv">Inventario</button>
     <button id="btnCaja">Caja</button>
+    <button id="btnMenu">Menú</button>
   </div>
 </div>
 
@@ -505,6 +580,59 @@
     <div class="caja-card">
       <h3>Canceladas hoy (revisa los motivos)</h3>
       <div class="cancel-list" id="cajaCancelList"><span class="mono" style="color:var(--ink-soft);">Sin cancelaciones hoy.</span></div>
+    </div>
+  </section>
+
+  <!-- MENU VIEW -->
+  <section id="viewMenu" style="display:none;">
+    <div id="menuPoster" class="menu-wrap">
+      <div class="menu-header">
+        <div class="menu-brand" id="mBrandName">El Sabor<br>de Mamá</div>
+        <div class="menu-tagline" id="mTagline">Gelatinas &amp; postres caseros</div>
+      </div>
+
+      <div class="menu-banner">Gelatinas y postres</div>
+      <div class="menu-section" id="mProductList"></div>
+
+      <div class="menu-banner" id="mAntojitosBanner">Antojitos</div>
+      <div class="menu-section" id="mAntojitos"></div>
+
+      <div class="menu-banner">Mini hotcakes</div>
+      <div class="menu-section">
+        <div class="hint" style="color:#c05c76; margin:0 0 6px;">Elige tu acompañamiento:</div>
+        <div class="menu-item"><span class="mi-name" id="mToppings">Cajeta · Maple · Lechera · Jalea de fresa</span></div>
+        <div class="menu-item"><span class="mi-price" id="mHcPrice">$25</span></div>
+      </div>
+
+      <div class="menu-footer">
+        <div>Pide al:</div>
+        <div class="mf-phones" id="mPhones">— · —</div>
+        <div class="mf-tag">♥ Hecho con amor ♥</div>
+      </div>
+    </div>
+
+    <div class="menu-edit-box">
+      <h3>Editar menú</h3>
+      <div class="hint">Los productos y precios se editan desde la pestaña <strong>Inventario</strong> (ahí también puedes ocultar uno del menú sin borrarlo). Aquí puedes ajustar lo demás:</div>
+      <label>Frase debajo del nombre</label>
+      <input type="text" id="menuTagline" placeholder="Gelatinas & postres caseros">
+      <label>Antojito (nombre)</label>
+      <input type="text" id="menuAntojitoName" placeholder="Chicharrón preparado">
+      <label>Antojito (precio)</label>
+      <input type="number" id="menuAntojitoPrice" min="0" placeholder="35">
+      <label>Toppings de mini hotcakes</label>
+      <input type="text" id="menuToppings" placeholder="Cajeta, Maple, Lechera, Jalea de fresa">
+      <label>Precio mini hotcakes</label>
+      <input type="number" id="menuHcPrice" min="0" placeholder="25">
+      <label>Teléfono 1</label>
+      <input type="text" id="menuPhone1" placeholder="446 265 4922">
+      <label>Teléfono 2 (opcional)</label>
+      <input type="text" id="menuPhone2" placeholder="735 125 2024">
+      <div class="menu-btn-row">
+        <button class="menu-btn secondary" id="menuSaveBtn">Guardar cambios</button>
+        <button class="menu-btn primary" id="menuDownloadBtn">Descargar imagen</button>
+      </div>
+      <div class="menu-shared-note">Estos cambios se ven en el menú de todos (compartido).</div>
     </div>
   </section>
 </main>
@@ -767,12 +895,22 @@ async function renderInv(){
         <button type="button" class="inc">+</button>
       </div>
       <button type="button" class="inv-del">✕</button>
+      <label class="inv-hide-toggle">
+        <input type="checkbox" class="oculto-input" ${f.oculto?'checked':''}>
+        Ocultar del menú (no lo borra, solo no aparece en la imagen)
+      </label>
     `;
     row.querySelector('.price-input').onchange = async (ev) => {
       const list = await loadFavs();
       list[i].price = Math.max(0, parseInt(ev.target.value) || 0);
       await saveFavs(list);
-      renderFavs();
+      renderFavs(); renderMenu();
+    };
+    row.querySelector('.oculto-input').onchange = async (ev) => {
+      const list = await loadFavs();
+      list[i].oculto = ev.target.checked;
+      await saveFavs(list);
+      renderMenu();
     };
     row.querySelector('.stock-input').onchange = async (ev) => {
       const list = await loadFavs();
@@ -822,8 +960,129 @@ document.getElementById('invAddBtn').onclick = async () => {
   favs.push({name, stock, price});
   await saveFavs(favs);
   nameInput.value = ''; stockInput.value = '0'; priceInput.value = '25';
-  renderInv(); renderFavs();
+  renderInv(); renderFavs(); renderMenu();
   showToast('Producto agregado');
+};
+
+// ---------------- menu poster (shared across every device) ----------------
+const MENU_EXTRAS_KEY = 'menuExtras';
+const DEFAULT_MENU_EXTRAS = {
+  tagline: 'Gelatinas & postres caseros',
+  antojitoName: 'Chicharrón preparado',
+  antojitoPrice: 35,
+  toppings: 'Cajeta, Maple, Lechera, Jalea de fresa',
+  hcPrice: 25,
+  phone1: '446 265 4922',
+  phone2: '735 125 2024'
+};
+let menuExtrasCache = null;
+
+async function loadMenuExtras(){
+  try{
+    const r = await window.storage.get(MENU_EXTRAS_KEY, true);
+    if(r && r.value){
+      menuExtrasCache = { ...DEFAULT_MENU_EXTRAS, ...JSON.parse(r.value) };
+      return menuExtrasCache;
+    }
+    throw new Error('empty');
+  }catch(e){
+    if(menuExtrasCache) return menuExtrasCache;
+    menuExtrasCache = { ...DEFAULT_MENU_EXTRAS };
+    return menuExtrasCache;
+  }
+}
+async function saveMenuExtras(extras){
+  menuExtrasCache = extras;
+  try{
+    await window.storage.set(MENU_EXTRAS_KEY, JSON.stringify(extras), true);
+  }catch(e){ showToast('No se pudo guardar el menú'); }
+}
+
+async function renderMenu(){
+  const favs = await loadFavs();
+  const extras = await loadMenuExtras();
+
+  document.getElementById('mTagline').textContent = extras.tagline;
+
+  const listEl = document.getElementById('mProductList');
+  const visible = favs.filter(f => !f.oculto);
+  if(visible.length === 0){
+    listEl.innerHTML = '<div class="menu-empty">Agrega productos desde la pestaña Inventario.</div>';
+  } else {
+    listEl.innerHTML = visible.map(f => `
+      <div class="menu-item">
+        <span class="mi-name">♥ ${escapeHtml(f.name)}${f.stock<=0 ? '<span class="mi-note">(depende disponibilidad)</span>' : ''}</span>
+        <span class="mi-price">$${f.price}</span>
+      </div>
+    `).join('');
+  }
+
+  const antojitosEl = document.getElementById('mAntojitos');
+  const antojitosBanner = document.getElementById('mAntojitosBanner');
+  if(extras.antojitoName && extras.antojitoName.trim()){
+    antojitosBanner.style.display = '';
+    antojitosEl.style.display = '';
+    antojitosEl.innerHTML = `
+      <div class="menu-item">
+        <span class="mi-name">♥ ${escapeHtml(extras.antojitoName)}</span>
+        <span class="mi-price">$${extras.antojitoPrice||0}</span>
+      </div>
+    `;
+  } else {
+    antojitosBanner.style.display = 'none';
+    antojitosEl.style.display = 'none';
+  }
+
+  document.getElementById('mToppings').textContent = (extras.toppings||'').split(',').map(t=>t.trim()).filter(Boolean).join(' · ');
+  document.getElementById('mHcPrice').textContent = '$' + (extras.hcPrice||0);
+
+  const phones = [extras.phone1, extras.phone2].filter(p => p && p.trim());
+  document.getElementById('mPhones').textContent = phones.length ? phones.join('  ·  ') : '—';
+
+  // fill edit form (only if not currently focused, so we don't fight typing)
+  const fields = {
+    menuTagline: extras.tagline, menuAntojitoName: extras.antojitoName,
+    menuAntojitoPrice: extras.antojitoPrice, menuToppings: extras.toppings,
+    menuHcPrice: extras.hcPrice, menuPhone1: extras.phone1, menuPhone2: extras.phone2
+  };
+  Object.entries(fields).forEach(([id, val]) => {
+    const input = document.getElementById(id);
+    if(input && document.activeElement !== input) input.value = val ?? '';
+  });
+}
+
+document.getElementById('menuSaveBtn').onclick = async () => {
+  const extras = {
+    tagline: document.getElementById('menuTagline').value.trim() || DEFAULT_MENU_EXTRAS.tagline,
+    antojitoName: document.getElementById('menuAntojitoName').value.trim(),
+    antojitoPrice: Math.max(0, parseInt(document.getElementById('menuAntojitoPrice').value) || 0),
+    toppings: document.getElementById('menuToppings').value.trim() || DEFAULT_MENU_EXTRAS.toppings,
+    hcPrice: Math.max(0, parseInt(document.getElementById('menuHcPrice').value) || 0),
+    phone1: document.getElementById('menuPhone1').value.trim(),
+    phone2: document.getElementById('menuPhone2').value.trim()
+  };
+  const btn = document.getElementById('menuSaveBtn');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  await saveMenuExtras(extras);
+  await renderMenu();
+  btn.disabled = false; btn.textContent = 'Guardar cambios';
+  showToast('Menú actualizado ✓');
+};
+
+document.getElementById('menuDownloadBtn').onclick = async () => {
+  const btn = document.getElementById('menuDownloadBtn');
+  btn.disabled = true; btn.textContent = 'Generando…';
+  try{
+    const canvas = await html2canvas(document.getElementById('menuPoster'), { scale: 2, backgroundColor: '#fdedf1' });
+    const link = document.createElement('a');
+    link.download = 'menu-el-sabor-de-mama.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('Imagen descargada ✓');
+  }catch(e){
+    showToast('No se pudo generar la imagen');
+  }
+  btn.disabled = false; btn.textContent = 'Descargar imagen';
 };
 
 async function decrementInventoryForOrder(productos){
@@ -959,10 +1218,12 @@ const btnSend = document.getElementById('btnSend');
 const btnRecv = document.getElementById('btnRecv');
 const btnInv = document.getElementById('btnInv');
 const btnCaja = document.getElementById('btnCaja');
+const btnMenu = document.getElementById('btnMenu');
 const viewSend = document.getElementById('viewSend');
 const viewRecv = document.getElementById('viewRecv');
 const viewInv = document.getElementById('viewInv');
 const viewCaja = document.getElementById('viewCaja');
+const viewMenu = document.getElementById('viewMenu');
 let mode = 'send';
 let recvSubtab = 'activas';
 let pollHandle = null;
@@ -971,6 +1232,7 @@ btnSend.onclick = () => setMode('send');
 btnRecv.onclick = () => setMode('recv');
 btnInv.onclick = () => setMode('inv');
 btnCaja.onclick = () => setMode('caja');
+btnMenu.onclick = () => setMode('menu');
 
 document.getElementById('subActivas').onclick = () => { recvSubtab='activas'; setSubtabUI(); renderTickets(lastOrders); };
 document.getElementById('subHistorial').onclick = () => { recvSubtab='historial'; setSubtabUI(); renderTickets(lastOrders); };
@@ -985,10 +1247,12 @@ function setMode(m){
   btnRecv.classList.toggle('active', m==='recv');
   btnInv.classList.toggle('active', m==='inv');
   btnCaja.classList.toggle('active', m==='caja');
+  btnMenu.classList.toggle('active', m==='menu');
   viewSend.style.display = m==='send' ? '' : 'none';
   viewRecv.style.display = m==='recv' ? '' : 'none';
   viewInv.style.display = m==='inv' ? '' : 'none';
   viewCaja.style.display = m==='caja' ? '' : 'none';
+  viewMenu.style.display = m==='menu' ? '' : 'none';
   if(m==='recv'){
     loadTickets(true);
     if(!pollHandle) pollHandle = setInterval(()=>loadTickets(false), 3500);
@@ -999,6 +1263,7 @@ function setMode(m){
   if(m==='inv'){ renderInv(); }
   if(m==='send'){ renderFavs(); }
   if(m==='caja'){ loadCaja(); }
+  if(m==='menu'){ renderMenu(); }
 }
 
 // ---------------- send order ----------------
