@@ -438,6 +438,41 @@
   .menu-shared-note{
     font-family:'Space Mono',monospace; font-size:13.5px; color:var(--ink-soft); margin-top:8px;
   }
+
+  /* ---- EXPORT POSTER (offscreen, fixed size for sharing) ---- */
+  .mex-shell{
+    position:fixed; left:-99999px; top:0; width:1080px; background:#fdedf1; color:#5c1f2c;
+    font-family:'Libre Franklin',sans-serif; padding:56px;
+  }
+  .mex-border{ border:4px solid #e58ba0; border-radius:26px; padding:48px 44px; }
+  .mex-header{ text-align:center; margin-bottom:20px; }
+  .mex-brand{ font-family:'Bebas Neue',sans-serif; font-size:92px; line-height:0.95; color:#7a2436; }
+  .mex-tagline{
+    font-family:'Space Mono',monospace; font-size:28px; color:#c05c76; text-transform:uppercase;
+    letter-spacing:2px; margin-top:14px;
+  }
+  .mex-grid{ display:grid; grid-template-columns:1.2fr 1fr; gap:44px; margin-top:28px; align-items:start; }
+  .mex-banner{
+    background:#e07a95; color:#fff8f8; font-family:'Bebas Neue',sans-serif; font-size:36px;
+    letter-spacing:2px; padding:10px 22px; border-radius:14px; display:inline-block; margin-bottom:14px;
+  }
+  .mex-item{
+    display:flex; justify-content:space-between; align-items:baseline; gap:14px;
+    padding:11px 2px; border-bottom:2px dashed #e6b7c2; font-size:30px; font-weight:600;
+  }
+  .mex-item:last-child{ border-bottom:none; }
+  .mex-item .mex-note{ display:block; font-size:20px; color:#c05c76; font-weight:400; }
+  .mex-price{
+    background:#f9d3dc; color:#7a2436; font-family:'Space Mono',monospace; font-weight:700;
+    padding:5px 18px; border-radius:14px; font-size:26px; white-space:nowrap;
+  }
+  .mex-toppings{ font-size:26px; line-height:1.6; margin-bottom:8px; }
+  .mex-footer{
+    text-align:center; margin-top:36px; padding-top:28px; border-top:3px dashed #e6b7c2;
+    font-family:'Space Mono',monospace; font-size:24px; letter-spacing:1px;
+  }
+  .mex-phones{ font-weight:700; font-size:38px; margin-top:12px; }
+  .mex-tag{ margin-top:18px; font-style:italic; color:#c05c76; font-size:24px; }
 </style>
 </head>
 <body>
@@ -1072,8 +1107,13 @@ document.getElementById('menuSaveBtn').onclick = async () => {
 document.getElementById('menuDownloadBtn').onclick = async () => {
   const btn = document.getElementById('menuDownloadBtn');
   btn.disabled = true; btn.textContent = 'Generando…';
+  let node = null;
   try{
-    const canvas = await html2canvas(document.getElementById('menuPoster'), { scale: 2, backgroundColor: '#fdedf1' });
+    const favs = await loadFavs();
+    const extras = await loadMenuExtras();
+    node = buildExportPoster(favs, extras);
+    document.body.appendChild(node);
+    const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#fdedf1', width: 1080 });
     const link = document.createElement('a');
     link.download = 'menu-el-sabor-de-mama.png';
     link.href = canvas.toDataURL('image/png');
@@ -1082,8 +1122,61 @@ document.getElementById('menuDownloadBtn').onclick = async () => {
   }catch(e){
     showToast('No se pudo generar la imagen');
   }
+  if(node) node.remove();
   btn.disabled = false; btn.textContent = 'Descargar imagen';
 };
+
+// Builds a fixed-size, two-column poster (1080px wide) for sharing on
+// WhatsApp status / Facebook, so it doesn't come out as one long strip.
+function buildExportPoster(favs, extras){
+  const visible = favs.filter(f => !f.oculto);
+  const itemsHtml = visible.length
+    ? visible.map(f => `
+        <div class="mex-item">
+          <span>♥ ${escapeHtml(f.name)}${f.stock<=0 ? '<span class="mex-note">(depende disponibilidad)</span>' : ''}</span>
+          <span class="mex-price">$${f.price}</span>
+        </div>`).join('')
+    : '<div class="mex-item"><span>Agrega productos en Inventario</span></div>';
+
+  const antojitoHtml = (extras.antojitoName && extras.antojitoName.trim()) ? `
+    <div class="mex-banner">Antojitos</div>
+    <div class="mex-item">
+      <span>♥ ${escapeHtml(extras.antojitoName)}</span>
+      <span class="mex-price">$${extras.antojitoPrice||0}</span>
+    </div>` : '';
+
+  const toppings = (extras.toppings||'').split(',').map(t=>t.trim()).filter(Boolean).join(' · ');
+  const phones = [extras.phone1, extras.phone2].filter(p => p && p.trim()).join('   ·   ');
+
+  const wrap = document.createElement('div');
+  wrap.className = 'mex-shell';
+  wrap.innerHTML = `
+    <div class="mex-border">
+      <div class="mex-header">
+        <div class="mex-brand">El Sabor<br>de Mamá</div>
+        <div class="mex-tagline">${escapeHtml(extras.tagline || 'Gelatinas & postres caseros')}</div>
+      </div>
+      <div class="mex-grid">
+        <div class="mex-col">
+          <div class="mex-banner">Gelatinas y postres</div>
+          ${itemsHtml}
+        </div>
+        <div class="mex-col">
+          ${antojitoHtml}
+          <div class="mex-banner" style="margin-top:${antojitoHtml?'32px':'0'};">Mini hotcakes</div>
+          <div class="mex-toppings">Elige tu acompañamiento:<br><strong>${escapeHtml(toppings || 'Cajeta · Maple · Lechera · Jalea de fresa')}</strong></div>
+          <div class="mex-item"><span>Precio</span><span class="mex-price">$${extras.hcPrice||0}</span></div>
+        </div>
+      </div>
+      <div class="mex-footer">
+        <div>PIDE AL:</div>
+        <div class="mex-phones">${phones || '—'}</div>
+        <div class="mex-tag">♥ Hecho con amor ♥</div>
+      </div>
+    </div>
+  `;
+  return wrap;
+}
 
 async function decrementInventoryForOrder(productos){
   try{
