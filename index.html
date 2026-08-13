@@ -2528,7 +2528,7 @@ document.getElementById('qPdfBtn').onclick = async () => {
 
 function buildQuotePoster({ cliente, fecha, tam, yieldPer, lines, descPct, subtotal, total, totalPzas }){
   const wrap = document.createElement('div');
-  wrap.style.cssText = 'position:fixed; left:-99999px; top:0; width:1080px; background:#ffffff; color:#241f18; font-family:"Libre Franklin",sans-serif; padding:0;';
+  wrap.style.cssText = 'position:fixed; left:0; top:0; width:1080px; opacity:0; pointer-events:none; z-index:-9999; background:#ffffff; color:#241f18; font-family:"Libre Franklin",sans-serif; padding:0;';
   const rowsHtml = lines.map(l => `
     <tr>
       <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; word-break:break-word;">${escapeHtml(l.nombre)}</td>
