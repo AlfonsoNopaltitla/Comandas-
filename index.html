@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Libre+Franklin:wght@400;600;800&family=Yellowtail&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
     --board:#1c1a17;
@@ -330,6 +331,53 @@
   }
   .total-box .t-label{ font-family:'Space Mono',monospace; font-size:21.1px; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft); }
   .total-box .t-amount{ font-family:'Bebas Neue',sans-serif; font-size:42.1px; letter-spacing:0.03em; }
+  .discount-line{
+    display:flex; justify-content:space-between; align-items:center;
+    font-family:'Space Mono',monospace; font-size:19.3px; color:var(--done);
+    margin:-2px 0 6px; padding:0 2px;
+  }
+  .quote-btn{
+    width:100%; margin-top:10px; padding:12px; border:1.5px dashed var(--ink-soft); border-radius:6px;
+    background:transparent; color:var(--ink-soft); font-family:'Space Mono',monospace; font-size:20.5px;
+    cursor:pointer;
+  }
+  .quote-btn:active{ transform:scale(0.98); }
+
+  /* ---- mayoreo (volume pricing) ---- */
+  .mayoreo-locked{ font-family:'Space Mono',monospace; font-size:20.5px; color:var(--ink-soft); line-height:1.7; }
+  .mayoreo-tier-row{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .mayoreo-tier-row input{
+    border:1.5px solid var(--line); border-radius:6px; padding:6px 8px; width:70px; text-align:center;
+    font-family:'Space Mono',monospace; font-size:20.5px; color:var(--ink); background:var(--paper);
+  }
+  .mayoreo-edit-btn, .mayoreo-save-btn{
+    background:var(--ink); color:var(--paper); border:none; border-radius:6px;
+    padding:8px 14px; font-family:'Bebas Neue',sans-serif; font-size:22.8px; letter-spacing:0.03em; cursor:pointer;
+  }
+  .mayoreo-pass-link{
+    background:none; border:none; color:var(--ink-soft); font-family:'Space Mono',monospace;
+    font-size:17.5px; text-decoration:underline; cursor:pointer; margin-top:8px; padding:0;
+  }
+
+  /* ---- offscreen cotización node (for PDF export) ---- */
+  .cot-shell{
+    width:640px; background:var(--paper); color:var(--ink); font-family:'Libre Franklin',sans-serif;
+    padding:36px; position:fixed; left:-9999px; top:0;
+  }
+  .cot-shell .cot-head{ display:flex; align-items:center; gap:14px; border-bottom:2px solid var(--ink); padding-bottom:16px; margin-bottom:20px; }
+  .cot-shell .cot-head img{ width:56px; height:56px; border-radius:50%; }
+  .cot-shell .cot-brand{ font-family:'Bebas Neue',sans-serif; font-size:34px; letter-spacing:0.03em; }
+  .cot-shell .cot-doc-title{ font-family:'Bebas Neue',sans-serif; font-size:26px; color:var(--ink-soft); margin-left:auto; text-align:right; }
+  .cot-shell .cot-meta{ font-family:'Space Mono',monospace; font-size:16px; color:var(--ink-soft); margin-bottom:20px; }
+  .cot-shell .cot-meta div{ margin-bottom:4px; }
+  .cot-shell table{ width:100%; border-collapse:collapse; margin-bottom:16px; }
+  .cot-shell th{ text-align:left; font-family:'Space Mono',monospace; font-size:15px; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft); border-bottom:2px solid var(--line); padding:6px 4px; }
+  .cot-shell td{ font-family:'Libre Franklin',sans-serif; font-size:19px; padding:8px 4px; border-bottom:1px dashed var(--line); }
+  .cot-shell td.num, .cot-shell th.num{ text-align:right; }
+  .cot-shell .cot-totals{ margin-left:auto; width:280px; }
+  .cot-shell .cot-totals div{ display:flex; justify-content:space-between; font-family:'Space Mono',monospace; font-size:17px; padding:5px 0; }
+  .cot-shell .cot-totals .cot-final{ font-family:'Bebas Neue',sans-serif; font-size:32px; border-top:2px solid var(--ink); margin-top:6px; padding-top:10px; }
+  .cot-shell .cot-foot{ margin-top:26px; text-align:center; font-family:'Space Mono',monospace; font-size:15px; color:var(--ink-soft); }
   .t-total{
     display:flex; justify-content:space-between; font-family:'Bebas Neue',sans-serif;
     font-size:29.8px; padding-top:6px; border-top:1px dashed var(--line); margin-top:4px;
@@ -558,6 +606,8 @@
         <span class="t-amount" id="cambioAmount">$0</span>
       </div>
 
+      <button type="button" class="quote-btn" id="quoteBtn">📄 Generar cotización PDF</button>
+
       <label>Notas</label>
       <textarea id="notas" placeholder="Sin cebolla, para llevar, etc."></textarea>
 
@@ -622,6 +672,12 @@
       </div>
       <button id="retiroAddBtn" style="width:100%; margin-top:12px; background:var(--ink); color:var(--paper); border:none; border-radius:6px; padding:10px; font-family:'Bebas Neue',sans-serif; font-size:26.3px; letter-spacing:0.04em; cursor:pointer;">+ registrar retiro</button>
       <div class="cancel-list" id="retiroList" style="margin-top:12px;"><span class="mono" style="color:var(--ink-soft);">Sin retiros hoy.</span></div>
+    </div>
+
+    <div class="caja-card">
+      <h3>Precios por volumen (mayoreo)</h3>
+      <div class="hint" style="margin-top:-4px;">Descuento automático según la cantidad total de piezas en el pedido. Protegido con contraseña.</div>
+      <div id="mayoreoView"></div>
     </div>
 
     <div class="caja-card">
@@ -1343,12 +1399,55 @@ async function priceForProduct(nombre){
   const fav = favs.find(f => f.name.toLowerCase() === nombre.toLowerCase());
   return fav ? fav.price : 0;
 }
-async function computeOrderTotal(productos){
-  let total = 0;
-  for(const p of productos){
-    total += (await priceForProduct(p.nombre)) * p.cantidad;
+
+// ---------------- mayoreo (descuento por volumen) ----------------
+const MAYOREO_KEY = 'config:mayoreo';
+const ADMIN_PASS_KEY = 'config:adminpass';
+const DEFAULT_TIERS = [
+  { min: 0, pct: 0 },
+  { min: 50, pct: 5 },
+  { min: 100, pct: 10 }
+];
+async function loadMayoreoConfig(){
+  try{
+    const r = await window.storage.get(MAYOREO_KEY, true);
+    if(r && r.value){
+      const cfg = JSON.parse(r.value);
+      if(Array.isArray(cfg.tiers) && cfg.tiers.length) return cfg;
+    }
+  }catch(e){ /* usa default */ }
+  return { tiers: DEFAULT_TIERS };
+}
+async function saveMayoreoConfig(tiers){
+  await window.storage.set(MAYOREO_KEY, JSON.stringify({ tiers }), true);
+}
+function getDiscountPct(totalQty, tiers){
+  const sorted = [...tiers].sort((a,b)=> a.min - b.min);
+  let pct = 0;
+  for(const t of sorted){
+    if(totalQty >= t.min) pct = t.pct;
   }
-  return total;
+  return pct;
+}
+async function getAdminPassword(){
+  try{
+    const r = await window.storage.get(ADMIN_PASS_KEY, true);
+    return (r && r.value) ? r.value : null;
+  }catch(e){ return null; }
+}
+
+async function computeOrderTotal(productos){
+  let subtotal = 0;
+  let totalQty = 0;
+  for(const p of productos){
+    subtotal += (await priceForProduct(p.nombre)) * p.cantidad;
+    totalQty += p.cantidad;
+  }
+  const cfg = await loadMayoreoConfig();
+  const descuentoPct = getDiscountPct(totalQty, cfg.tiers);
+  const descuento = Math.round(subtotal * descuentoPct / 100 * 100) / 100;
+  const total = Math.round((subtotal - descuento) * 100) / 100;
+  return { subtotal, descuentoPct, descuento, total };
 }
 async function updateTotalDisplay(){
   const rows = Array.from(document.querySelectorAll('.prod-row'));
@@ -1356,8 +1455,21 @@ async function updateTotalDisplay(){
     nombre: r.querySelector('.pname').value.trim(),
     cantidad: parseInt(r.querySelector('.qtyval').value)||1
   })).filter(p => p.nombre);
-  const total = await computeOrderTotal(productos);
+  const { total, descuentoPct, descuento, subtotal } = await computeOrderTotal(productos);
   document.getElementById('totalAmount').textContent = '$' + total;
+  let discEl = document.getElementById('discountLine');
+  if(descuentoPct > 0){
+    if(!discEl){
+      discEl = document.createElement('div');
+      discEl.id = 'discountLine';
+      discEl.className = 'discount-line';
+      document.getElementById('totalAmount').closest('.total-box').insertAdjacentElement('beforebegin', discEl);
+    }
+    discEl.innerHTML = `<span>Descuento por volumen (${descuentoPct}%)</span><span>-$${descuento}</span>`;
+    discEl.style.display = '';
+  } else if(discEl){
+    discEl.style.display = 'none';
+  }
   updateCambioDisplay(total);
 }
 
@@ -1377,6 +1489,74 @@ function updateCambioDisplay(total){
   document.getElementById('cambioAmount').textContent = '$' + cambio.toFixed(2).replace(/\.00$/,'');
   cambioBox.style.display = '';
 }
+
+// ---------------- cotización PDF ----------------
+function buildQuoteNode(cliente, productos, precios, totales){
+  const fecha = new Date().toLocaleDateString('es-MX', { day:'2-digit', month:'long', year:'numeric' });
+  const rowsHtml = productos.map((p,i) => `
+    <tr>
+      <td>${escapeHtml(p.nombre)}</td>
+      <td class="num">${p.cantidad}</td>
+      <td class="num">$${precios[i].toFixed(2).replace(/\.00$/,'')}</td>
+      <td class="num">$${(precios[i]*p.cantidad).toFixed(2).replace(/\.00$/,'')}</td>
+    </tr>
+  `).join('');
+  const wrap = document.createElement('div');
+  wrap.className = 'cot-shell';
+  wrap.innerHTML = `
+    <div class="cot-head">
+      <img src="${LOGO_DATA_URI}" alt="El Sabor de Mamá">
+      <div class="cot-brand">EL SABOR DE MAMÁ</div>
+      <div class="cot-doc-title">COTIZACIÓN</div>
+    </div>
+    <div class="cot-meta">
+      <div>Cliente: ${escapeHtml(cliente || 'Sin nombre')}</div>
+      <div>Fecha: ${fecha}</div>
+    </div>
+    <table>
+      <thead><tr><th>Producto</th><th class="num">Cant.</th><th class="num">P. unit.</th><th class="num">Importe</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <div class="cot-totals">
+      <div><span>Subtotal</span><span>$${totales.subtotal.toFixed(2).replace(/\.00$/,'')}</span></div>
+      ${totales.descuentoPct>0 ? `<div><span>Descuento (${totales.descuentoPct}%)</span><span>-$${totales.descuento.toFixed(2).replace(/\.00$/,'')}</span></div>` : ''}
+      <div class="cot-final"><span>Total</span><span>$${totales.total.toFixed(2).replace(/\.00$/,'')}</span></div>
+    </div>
+    <div class="cot-foot">Cotización válida por 7 días · ¡Gracias por tu preferencia! ♥</div>
+  `;
+  return wrap;
+}
+document.getElementById('quoteBtn').onclick = async () => {
+  const cliente = document.getElementById('cliente').value.trim();
+  const rows = Array.from(document.querySelectorAll('.prod-row'));
+  const productos = rows.map(r => ({
+    nombre: r.querySelector('.pname').value.trim(),
+    cantidad: parseInt(r.querySelector('.qtyval').value)||1
+  })).filter(p => p.nombre);
+  if(productos.length===0){ showToast('Agrega al menos un producto para cotizar'); return; }
+
+  const btn = document.getElementById('quoteBtn');
+  btn.disabled = true; btn.textContent = 'Generando…';
+  let node = null;
+  try{
+    const precios = [];
+    for(const p of productos) precios.push(await priceForProduct(p.nombre));
+    const totales = await computeOrderTotal(productos);
+    node = buildQuoteNode(cliente, productos, precios, totales);
+    document.body.appendChild(node);
+    const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#f2e9d8' });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'px', format: [canvas.width, canvas.height] });
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, canvas.width, canvas.height);
+    const nombreArchivo = 'cotizacion-' + (cliente ? cliente.toLowerCase().replace(/[^a-z0-9]+/g,'-') : 'cliente') + '.pdf';
+    pdf.save(nombreArchivo);
+    showToast('Cotización descargada ✓');
+  }catch(e){
+    showToast('No se pudo generar la cotización');
+  }
+  if(node) node.remove();
+  btn.disabled = false; btn.textContent = '📄 Generar cotización PDF';
+};
 
 document.getElementById('pagaCon').addEventListener('input', () => {
   const totalText = document.getElementById('totalAmount').textContent.replace('$','');
@@ -1470,11 +1650,11 @@ document.getElementById('sendBtn').onclick = async () => {
   if(productos.length===0){ showToast('Agrega al menos un producto'); return; }
 
   const id = Date.now() + '-' + Math.random().toString(36).slice(2,7);
-  const total = await computeOrderTotal(productos);
+  const { total, subtotal, descuentoPct, descuento } = await computeOrderTotal(productos);
   const pagaConRaw = document.getElementById('pagaCon').value;
   const pagaCon = pagaConRaw !== '' ? parseFloat(pagaConRaw) : null;
   const cambio = (pagaCon !== null && !isNaN(pagaCon)) ? Math.max(0, pagaCon - total) : null;
-  const order = { id, cliente, productos, notas, estado:'pendiente', ts: Date.now(), total, pagaCon, cambio };
+  const order = { id, cliente, productos, notas, estado:'pendiente', ts: Date.now(), total, subtotal, descuentoPct, descuento, pagaCon, cambio };
 
   const btn = document.getElementById('sendBtn');
   btn.disabled = true; btn.textContent = 'Enviando…';
@@ -1780,7 +1960,8 @@ async function saveEdit(id){
       o.cliente = cliente;
       o.notas = notas;
       o.productos = productos;
-      o.total = await computeOrderTotal(productos);
+      { const { total, subtotal, descuentoPct, descuento } = await computeOrderTotal(productos);
+        o.total = total; o.subtotal = subtotal; o.descuentoPct = descuentoPct; o.descuento = descuento; }
       await window.storage.set('comanda:'+id, JSON.stringify(o), true);
       await adjustInventoryForEdit(productosViejos, productos);
     }
@@ -1840,7 +2021,83 @@ function pctChange(current, previous){
   return (pct>=0?'+':'') + pct.toFixed(0) + '%';
 }
 
+// ---------------- mayoreo UI ----------------
+function tierLabel(tiers){
+  const sorted = [...tiers].sort((a,b)=> a.min - b.min);
+  return sorted.map((t,i) => {
+    const next = sorted[i+1];
+    const rango = next ? `${t.min}–${next.min-1} piezas` : `${t.min}+ piezas`;
+    return `${rango}: ${t.pct>0 ? t.pct+'%' : 'sin descuento'}`;
+  }).join(' · ');
+}
+async function renderMayoreoLocked(){
+  const cfg = await loadMayoreoConfig();
+  const box = document.getElementById('mayoreoView');
+  box.innerHTML = `
+    <div class="mayoreo-locked">${tierLabel(cfg.tiers)}</div>
+    <button class="mayoreo-edit-btn" id="mayoreoEditBtn" style="margin-top:10px;">Editar</button>
+  `;
+  document.getElementById('mayoreoEditBtn').onclick = unlockMayoreo;
+}
+async function unlockMayoreo(){
+  const savedPass = await getAdminPassword();
+  if(!savedPass){
+    const p1 = prompt('Aún no tienes contraseña. Crea una para proteger esta sección:');
+    if(!p1) return;
+    const p2 = prompt('Confirma la contraseña:');
+    if(p1 !== p2){ showToast('Las contraseñas no coinciden'); return; }
+    await window.storage.set(ADMIN_PASS_KEY, p1, true);
+    showToast('Contraseña creada ✓');
+    renderMayoreoEdit();
+    return;
+  }
+  const intento = prompt('Contraseña:');
+  if(intento === null) return;
+  if(intento !== savedPass){ showToast('Contraseña incorrecta'); return; }
+  renderMayoreoEdit();
+}
+async function renderMayoreoEdit(){
+  const cfg = await loadMayoreoConfig();
+  const sorted = [...cfg.tiers].sort((a,b)=> a.min - b.min);
+  const box = document.getElementById('mayoreoView');
+  box.innerHTML = `
+    ${sorted.map((t,i) => `
+      <div class="mayoreo-tier-row">
+        <span class="mono" style="font-size:19.3px; color:var(--ink-soft);">${i===0 ? 'Desde' : 'Desde'}</span>
+        <input type="number" min="0" class="tierMin" value="${t.min}" ${i===0?'disabled':''}>
+        <span class="mono" style="font-size:19.3px; color:var(--ink-soft);">piezas →</span>
+        <input type="number" min="0" max="100" class="tierPct" value="${t.pct}">
+        <span class="mono" style="font-size:19.3px; color:var(--ink-soft);">%</span>
+      </div>
+    `).join('')}
+    <button class="mayoreo-save-btn" id="mayoreoSaveBtn">Guardar cambios</button>
+    <br>
+    <button type="button" class="mayoreo-pass-link" id="mayoreoChangePass">Cambiar contraseña</button>
+  `;
+  document.getElementById('mayoreoSaveBtn').onclick = async () => {
+    const rows = Array.from(box.querySelectorAll('.mayoreo-tier-row'));
+    const tiers = rows.map(r => ({
+      min: parseInt(r.querySelector('.tierMin').value)||0,
+      pct: Math.max(0, Math.min(100, parseInt(r.querySelector('.tierPct').value)||0))
+    }));
+    await saveMayoreoConfig(tiers);
+    showToast('Mayoreo actualizado ✓');
+    renderMayoreoLocked();
+  };
+  document.getElementById('mayoreoChangePass').onclick = async () => {
+    const savedPass = await getAdminPassword();
+    const actual = prompt('Contraseña actual:');
+    if(actual === null) return;
+    if(actual !== savedPass){ showToast('Contraseña incorrecta'); return; }
+    const nueva = prompt('Nueva contraseña:');
+    if(!nueva) return;
+    await window.storage.set(ADMIN_PASS_KEY, nueva, true);
+    showToast('Contraseña actualizada ✓');
+  };
+}
+
 async function loadCaja(){
+  renderMayoreoLocked();
   try{
     const [orders, retiros] = await Promise.all([fetchAllOrders(), fetchAllRetiros()]);
 
