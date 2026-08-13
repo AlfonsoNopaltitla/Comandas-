@@ -2503,8 +2503,7 @@ document.getElementById('qPdfBtn').onclick = async () => {
 
     node = buildQuotePoster({ cliente, fecha, tam, yieldPer, lines, descPct, subtotal, total, totalPzas });
     document.body.appendChild(node);
-    const captureWidth = Math.max(1080, node.scrollWidth);
-    const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#ffffff', width: captureWidth, windowWidth: captureWidth });
+    const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#ffffff' });
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ unit:'px', format:[canvas.width/2, canvas.height/2] });
     pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, canvas.width/2, canvas.height/2);
