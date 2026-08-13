@@ -2519,8 +2519,10 @@ document.getElementById('qPdfBtn').onclick = async () => {
       windowHeight: fullHeight
     });
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ unit:'px', format:[canvas.width/2, canvas.height/2] });
-    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, canvas.width/2, canvas.height/2);
+    const pdfW = canvas.width/2;
+    const pdfH = canvas.height/2;
+    const pdf = new jsPDF({ unit:'px', orientation: pdfW > pdfH ? 'l' : 'p', format:[pdfW, pdfH] });
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pdfW, pdfH);
     const safeCliente = (cliente||'cliente').replace(/[^a-z0-9]+/gi,'-').toLowerCase();
     pdf.save(`cotizacion-${safeCliente}-${fecha}.pdf`);
     showToast('Cotización descargada ✓');
