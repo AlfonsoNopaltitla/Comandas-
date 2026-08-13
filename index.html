@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>El Sabor de Mamá</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Libre+Franklin:wght@400;600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Libre+Franklin:wght@400;600;800&family=Yellowtail&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   :root{
@@ -444,35 +444,67 @@
     position:fixed; left:-99999px; top:0; width:1080px; background:#fdedf1; color:#5c1f2c;
     font-family:'Libre Franklin',sans-serif; padding:56px;
   }
-  .mex-border{ border:4px solid #e58ba0; border-radius:26px; padding:48px 44px; }
-  .mex-header{ text-align:center; margin-bottom:20px; }
-  .mex-brand{ font-family:'Bebas Neue',sans-serif; font-size:92px; line-height:0.95; color:#7a2436; }
-  .mex-tagline{
-    font-family:'Space Mono',monospace; font-size:28px; color:#c05c76; text-transform:uppercase;
-    letter-spacing:2px; margin-top:14px;
+  .mex-border{ border:4px solid #e58ba0; border-radius:26px; padding:44px 44px 0; overflow:hidden; }
+
+  .mex-header-row{ display:flex; align-items:center; gap:18px; margin-bottom:6px; }
+  .mex-side-text{
+    flex:1; font-family:'Libre Franklin',sans-serif; font-style:italic; font-size:21px;
+    line-height:1.5; color:#5c1f2c; text-align:center;
   }
-  .mex-grid{ display:grid; grid-template-columns:1.2fr 1fr; gap:44px; margin-top:28px; align-items:start; }
+  .mex-side-text .accent{ color:#e07a95; font-weight:700; font-style:normal; }
+  .mex-side-heart{ margin-bottom:6px; }
+
+  .mex-logo-circle{
+    flex:0 0 420px; width:420px; height:420px; border-radius:50%; border:3px solid #e58ba0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    position:relative; background:#fff6f8;
+  }
+  .mex-logo-circle::before{ content:""; position:absolute; inset:13px; border:1.5px solid #f0bccb; border-radius:50%; }
+  .mex-el{ font-family:'Libre Franklin',sans-serif; font-weight:800; font-size:26px; color:#3a1420; }
+  .mex-sabor{ font-family:'Yellowtail',cursive; font-size:80px; color:#3a1420; line-height:0.85; margin-top:-4px; }
+  .mex-de{ font-family:'Yellowtail',cursive; font-size:30px; color:#3a1420; margin-top:-4px; }
+  .mex-mama{ font-family:'Yellowtail',cursive; font-size:68px; color:#3a1420; line-height:0.85; margin-top:-6px; }
+  .mex-caption{
+    font-family:'Space Mono',monospace; font-size:14px; letter-spacing:3px; color:#3a1420;
+    margin-top:10px; text-align:center;
+  }
+
+  .mex-heading{
+    text-align:center; font-family:'Bebas Neue',sans-serif; font-size:42px; letter-spacing:1px;
+    color:#3a1420; margin:24px 0 6px;
+  }
+  .mex-heading .accent{ font-family:'Yellowtail',cursive; color:#e07a95; font-size:48px; }
+
   .mex-banner{
-    background:#e07a95; color:#fff8f8; font-family:'Bebas Neue',sans-serif; font-size:36px;
-    letter-spacing:2px; padding:10px 22px; border-radius:14px; display:inline-block; margin-bottom:14px;
+    background:#e07a95; color:#fff8f8; font-family:'Bebas Neue',sans-serif; font-size:34px;
+    letter-spacing:2px; padding:9px 20px; border-radius:14px; margin-bottom:14px;
+    display:flex; align-items:center; gap:10px;
   }
+  .mex-grid{ display:grid; grid-template-columns:1.2fr 1fr; gap:44px; margin-top:20px; align-items:start; }
   .mex-item{
     display:flex; justify-content:space-between; align-items:baseline; gap:14px;
-    padding:11px 2px; border-bottom:2px dashed #e6b7c2; font-size:30px; font-weight:600;
+    padding:11px 2px; border-bottom:2px dashed #e6b7c2; font-size:29px; font-weight:600;
   }
   .mex-item:last-child{ border-bottom:none; }
-  .mex-item .mex-note{ display:block; font-size:20px; color:#c05c76; font-weight:400; }
   .mex-price{
     background:#f9d3dc; color:#7a2436; font-family:'Space Mono',monospace; font-weight:700;
-    padding:5px 18px; border-radius:14px; font-size:26px; white-space:nowrap;
+    padding:5px 18px; border-radius:14px; font-size:25px; white-space:nowrap;
   }
-  .mex-toppings{ font-size:26px; line-height:1.6; margin-bottom:8px; }
-  .mex-footer{
-    text-align:center; margin-top:36px; padding-top:28px; border-top:3px dashed #e6b7c2;
-    font-family:'Space Mono',monospace; font-size:24px; letter-spacing:1px;
+  .mex-toppings{ font-size:25px; line-height:1.6; margin-bottom:8px; }
+
+  .mex-footer-icons{ display:flex; justify-content:space-between; gap:8px; margin-top:34px; }
+  .mex-fi{ flex:1; text-align:center; font-family:'Space Mono',monospace; font-size:14px; color:#3a1420; line-height:1.3; }
+  .mex-fi-icon{ display:flex; justify-content:center; margin-bottom:6px; }
+
+  .mex-phones-box{ text-align:center; margin-top:24px; }
+  .mex-phones-label{ font-family:'Space Mono',monospace; font-size:20px; letter-spacing:1px; color:#3a1420; }
+  .mex-phones-row{ display:flex; align-items:center; justify-content:center; gap:12px; margin-top:10px; flex-wrap:wrap; }
+  .mex-phone-chip{ display:flex; align-items:center; gap:8px; font-family:'Space Mono',monospace; font-weight:700; font-size:32px; color:#3a1420; }
+
+  .mex-ribbon{
+    margin:26px -44px 0; background:#e07a95; color:#fff8f8; text-align:center; padding:20px;
+    font-family:'Yellowtail',cursive; font-size:36px; border-radius:0;
   }
-  .mex-phones{ font-weight:700; font-size:38px; margin-top:12px; }
-  .mex-tag{ margin-top:18px; font-style:italic; color:#c05c76; font-size:24px; }
 </style>
 </head>
 <body>
@@ -1046,7 +1078,7 @@ async function renderMenu(){
   } else {
     listEl.innerHTML = visible.map(f => `
       <div class="menu-item">
-        <span class="mi-name">♥ ${escapeHtml(f.name)}${f.stock<=0 ? '<span class="mi-note">(depende disponibilidad)</span>' : ''}</span>
+        <span class="mi-name">♥ ${escapeHtml(f.name)}</span>
         <span class="mi-price">$${f.price}</span>
       </div>
     `).join('');
@@ -1072,7 +1104,9 @@ async function renderMenu(){
   document.getElementById('mHcPrice').textContent = '$' + (extras.hcPrice||0);
 
   const phones = [extras.phone1, extras.phone2].filter(p => p && p.trim());
-  document.getElementById('mPhones').textContent = phones.length ? phones.join('  ·  ') : '—';
+  document.getElementById('mPhones').innerHTML = phones.length
+    ? phones.map(p => `<span style="display:inline-flex;align-items:center;gap:4px;">${ICONS.whatsapp(18)}${escapeHtml(p)}</span>`).join('&nbsp;&nbsp;·&nbsp;&nbsp;')
+    : '—';
 
   // fill edit form (only if not currently focused, so we don't fight typing)
   const fields = {
@@ -1104,6 +1138,51 @@ document.getElementById('menuSaveBtn').onclick = async () => {
   showToast('Menú actualizado ✓');
 };
 
+// ---------------- hand-drawn style icons (inline SVG, no external images needed) ----------------
+const ICONS = {
+  whisk(s=60){ return `<svg width="${s}" height="${s*1.5}" viewBox="0 0 60 90" fill="none" stroke="#c05c76" stroke-width="2.4" stroke-linecap="round">
+    <rect x="24" y="64" width="12" height="24" rx="5" fill="#f6c9d3" stroke="#c05c76"/>
+    <path d="M30 64 C10 50 12 26 30 17 C48 26 50 50 30 64Z"/>
+    <path d="M30 64 C18 50 20 30 30 22"/>
+    <path d="M30 64 C42 50 40 30 30 22"/>
+    <path d="M22 56 C22 40 24 27 30 20"/>
+    <path d="M38 56 C38 40 36 27 30 20"/>
+  </svg>`; },
+  heart(s=24, fill='none', stroke='#e07a95'){ return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="${fill}" stroke="${stroke}" stroke-width="1.6"><path d="M12 20s-7-4.5-9.5-9C.7 7.8 2 4 5.5 4c2 0 3.3 1.2 4 2.3.7-1.1 2-2.3 4-2.3 3.5 0 4.8 3.8 3 7-2.5 4.5-9.5 9-9.5 9z"/></svg>`; },
+  chili(s=48){ return `<svg width="${s}" height="${s}" viewBox="0 0 60 60" fill="none" stroke="#c0503a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M15 13c4-6 11-3 8 4"/>
+    <path d="M19 15c15 1 27 15 23 30-3 10-17 13-25 5C7 41 6 25 19 15Z" fill="#f6a99a"/>
+  </svg>`; },
+  pancakes(s=64){ return `<svg width="${s}" height="${s*0.9}" viewBox="0 0 80 70" fill="none">
+    <ellipse cx="40" cy="52" rx="30" ry="8" fill="#f3d9a8" stroke="#c08a3a" stroke-width="2"/>
+    <ellipse cx="40" cy="42" rx="28" ry="7.5" fill="#f6e0b3" stroke="#c08a3a" stroke-width="2"/>
+    <ellipse cx="40" cy="32" rx="26" ry="7" fill="#f9e7c1" stroke="#c08a3a" stroke-width="2"/>
+    <path d="M40 21c-3-5 2-9 6-6 4-3 9 1 6 6-2 3-6 6-6 6s-4-3-6-6Z" fill="#e07a95"/>
+    <path d="M18 30c4 4 4 10 0 14M62 30c-4 4-4 10 0 14" stroke="#c08a3a" stroke-width="2" stroke-linecap="round"/>
+  </svg>`; },
+  houseHeart(s=52){ return `<svg width="${s}" height="${s}" viewBox="0 0 60 60" fill="none" stroke="#e07a95" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 28 L30 10 L52 28"/>
+    <path d="M14 26 V50 H46 V26"/>
+    <path d="M30 44s-8-5-8-11c0-3.5 2.8-6 6-4.5 1 .5 2 1.5 2 1.5s1-1 2-1.5c3.2-1.5 6 1 6 4.5 0 6-8 11-8 11Z" fill="#f6c9d3"/>
+  </svg>`; },
+  ribbon(s=52){ return `<svg width="${s}" height="${s}" viewBox="0 0 60 60" fill="none" stroke="#e07a95" stroke-width="2.2">
+    <circle cx="30" cy="22" r="14" fill="#fbd8de"/>
+    <path d="M22 33 L16 54 L30 46 L44 54 L38 33"/>
+    <path d="M30 15 l2.6 5.3 5.8.8-4.2 4 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4 5.8-.8Z" fill="#e07a95" stroke="none"/>
+  </svg>`; },
+  scooter(s=56){ return `<svg width="${s}" height="${s*0.75}" viewBox="0 0 80 60" fill="none" stroke="#e07a95" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="18" cy="48" r="7"/><circle cx="58" cy="48" r="7"/>
+    <path d="M18 48 H36 L44 30 H58"/><path d="M36 48 H50"/>
+    <path d="M44 30c8-2 10 4 6 8"/>
+    <path d="M60 20c3-2 7 0 6 4-1 3-5 3-6 1"/>
+  </svg>`; },
+  chatHeart(s=52){ return `<svg width="${s}" height="${s*0.9}" viewBox="0 0 60 54" fill="none" stroke="#e07a95" stroke-width="2.2" stroke-linejoin="round">
+    <path d="M8 8h44v28H26l-8 10v-10H8Z" fill="#fbd8de"/>
+    <path d="M30 18s-6-4-9 0c-2 3 0 6 9 12 9-6 11-9 9-12-3-4-9 0-9 0Z" fill="#e07a95" stroke="none"/>
+  </svg>`; },
+  whatsapp(s=32){ return `<svg width="${s}" height="${s}" viewBox="0 0 34 34"><circle cx="17" cy="17" r="17" fill="#25D366"/><path d="M13.2 12.4c.3-.6.5-.6.8-.6h.6c.2 0 .5 0 .7.5.3.6.9 2 1 2.1.1.2.1.4 0 .6-.1.2-.2.3-.4.5l-.5.6c-.2.2-.3.4-.1.7.2.3.9 1.4 1.9 2.3 1.3 1.2 2.4 1.5 2.7 1.7.3.2.5.1.7-.1l.7-.8c.2-.3.4-.2.7-.1l1.9.9c.2.1.4.2.5.4.1.2.1 1-.2 1.9-.3.9-1.7 1.7-2.4 1.8-.6.1-1.4.2-4.5-1-3.7-1.5-6-5.3-6.2-5.6-.2-.2-1.4-1.9-1.4-3.6 0-1.7.9-2.5 1.2-2.9z" fill="#fff"/></svg>`; }
+};
+
 document.getElementById('menuDownloadBtn').onclick = async () => {
   const btn = document.getElementById('menuDownloadBtn');
   btn.disabled = true; btn.textContent = 'Generando…';
@@ -1126,53 +1205,81 @@ document.getElementById('menuDownloadBtn').onclick = async () => {
   btn.disabled = false; btn.textContent = 'Descargar imagen';
 };
 
-// Builds a fixed-size, two-column poster (1080px wide) for sharing on
-// WhatsApp status / Facebook, so it doesn't come out as one long strip.
+// Builds a fixed-size, illustrated two-column poster (1080px wide) for
+// sharing on WhatsApp status / Facebook, with the logo circle and icons.
 function buildExportPoster(favs, extras){
   const visible = favs.filter(f => !f.oculto);
   const itemsHtml = visible.length
     ? visible.map(f => `
         <div class="mex-item">
-          <span>♥ ${escapeHtml(f.name)}${f.stock<=0 ? '<span class="mex-note">(depende disponibilidad)</span>' : ''}</span>
+          <span>♥ ${escapeHtml(f.name)}</span>
           <span class="mex-price">$${f.price}</span>
         </div>`).join('')
     : '<div class="mex-item"><span>Agrega productos en Inventario</span></div>';
 
   const antojitoHtml = (extras.antojitoName && extras.antojitoName.trim()) ? `
-    <div class="mex-banner">Antojitos</div>
+    <div class="mex-banner">${ICONS.chili(30)}Antojitos</div>
     <div class="mex-item">
       <span>♥ ${escapeHtml(extras.antojitoName)}</span>
       <span class="mex-price">$${extras.antojitoPrice||0}</span>
     </div>` : '';
 
   const toppings = (extras.toppings||'').split(',').map(t=>t.trim()).filter(Boolean).join(' · ');
-  const phones = [extras.phone1, extras.phone2].filter(p => p && p.trim()).join('   ·   ');
+  const phone1 = (extras.phone1||'').trim();
+  const phone2 = (extras.phone2||'').trim();
+  const phoneChip = p => p ? `<span class="mex-phone-chip">${ICONS.whatsapp(32)}${escapeHtml(p)}</span>` : '';
 
   const wrap = document.createElement('div');
   wrap.className = 'mex-shell';
   wrap.innerHTML = `
     <div class="mex-border">
-      <div class="mex-header">
-        <div class="mex-brand">El Sabor<br>de Mamá</div>
-        <div class="mex-tagline">${escapeHtml(extras.tagline || 'Gelatinas & postres caseros')}</div>
+      <div class="mex-header-row">
+        <div class="mex-side-text">
+          <div class="mex-side-heart">${ICONS.heart(30,'#fbd8de','#e07a95')}</div>
+          Hechos con <span class="accent">amor,</span><br>para endulzar tus días
+        </div>
+        <div class="mex-logo-circle">
+          ${ICONS.whisk(46)}
+          <div class="mex-el">El</div>
+          <div class="mex-sabor">Sabor</div>
+          <div class="mex-de">de</div>
+          <div class="mex-mama">Mamá</div>
+          <div class="mex-caption">GELATINAS &amp; POSTRES<br>— CASEROS —</div>
+        </div>
+        <div class="mex-side-text">
+          Cada postre es preparado con los mejores <span class="accent">ingredientes</span> y el toque especial <span class="accent">de mamá.</span>
+          <div class="mex-side-heart" style="margin-top:6px;">${ICONS.heart(30,'#fbd8de','#e07a95')}</div>
+        </div>
       </div>
+
+      <div class="mex-heading">¡Tenemos algo <span class="accent">delicioso</span> para ti!</div>
+
       <div class="mex-grid">
         <div class="mex-col">
-          <div class="mex-banner">Gelatinas y postres</div>
+          <div class="mex-banner">${ICONS.heart(26,'#fff','#fff8f8')}Gelatinas y postres</div>
           ${itemsHtml}
         </div>
         <div class="mex-col">
           ${antojitoHtml}
-          <div class="mex-banner" style="margin-top:${antojitoHtml?'32px':'0'};">Mini hotcakes</div>
+          <div class="mex-banner" style="margin-top:${antojitoHtml?'28px':'0'};">${ICONS.pancakes(34)}Mini hotcakes</div>
           <div class="mex-toppings">Elige tu acompañamiento:<br><strong>${escapeHtml(toppings || 'Cajeta · Maple · Lechera · Jalea de fresa')}</strong></div>
           <div class="mex-item"><span>Precio</span><span class="mex-price">$${extras.hcPrice||0}</span></div>
         </div>
       </div>
-      <div class="mex-footer">
-        <div>PIDE AL:</div>
-        <div class="mex-phones">${phones || '—'}</div>
-        <div class="mex-tag">♥ Hecho con amor ♥</div>
+
+      <div class="mex-footer-icons">
+        <div class="mex-fi"><div class="mex-fi-icon">${ICONS.houseHeart(50)}</div>Hechos<br>en casa</div>
+        <div class="mex-fi"><div class="mex-fi-icon">${ICONS.ribbon(50)}</div>Ingredientes<br>de calidad</div>
+        <div class="mex-fi"><div class="mex-fi-icon">${ICONS.scooter(50)}</div>Entregas<br>a domicilio</div>
+        <div class="mex-fi"><div class="mex-fi-icon">${ICONS.chatHeart(50)}</div>¡Haz tu pedido!</div>
       </div>
+
+      <div class="mex-phones-box">
+        <div class="mex-phones-label">PIDE POR WHATSAPP AL:</div>
+        <div class="mex-phones-row">${phoneChip(phone1)}${phoneChip(phone2)}</div>
+      </div>
+
+      <div class="mex-ribbon">♥ El sabor de mamá, hecho con amor ♥</div>
     </div>
   `;
   return wrap;
