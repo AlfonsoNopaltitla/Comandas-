@@ -374,7 +374,9 @@
   .cot-shell th{ text-align:left; font-family:'Space Mono',monospace; font-size:15px; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft); border-bottom:2px solid var(--line); padding:6px 4px; }
   .cot-shell td{ font-family:'Libre Franklin',sans-serif; font-size:19px; padding:8px 4px; border-bottom:1px dashed var(--line); }
   .cot-shell td.num, .cot-shell th.num{ text-align:right; }
-  .cot-shell .cot-totals{ margin-left:auto; width:280px; }
+  .cot-shell .cot-totals{ float:right; width:280px; }
+  .cot-shell .cot-totals::after{ content:""; display:block; clear:both; }
+  .cot-shell .cot-foot{ clear:both; }
   .cot-shell .cot-totals div{ display:flex; justify-content:space-between; font-family:'Space Mono',monospace; font-size:17px; padding:5px 0; }
   .cot-shell .cot-totals .cot-final{ font-family:'Bebas Neue',sans-serif; font-size:32px; border-top:2px solid var(--ink); margin-top:6px; padding-top:10px; }
   .cot-shell .cot-foot{ margin-top:26px; text-align:center; font-family:'Space Mono',monospace; font-size:15px; color:var(--ink-soft); }
@@ -1544,7 +1546,7 @@ document.getElementById('quoteBtn').onclick = async () => {
     const totales = await computeOrderTotal(productos);
     node = buildQuoteNode(cliente, productos, precios, totales);
     document.body.appendChild(node);
-    const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#f2e9d8' });
+    const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#f2e9d8', width: 640, windowWidth: 640 });
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ unit: 'px', format: [canvas.width, canvas.height] });
     pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, canvas.width, canvas.height);
