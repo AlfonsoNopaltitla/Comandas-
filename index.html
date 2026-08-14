@@ -515,11 +515,16 @@
     background:var(--paper); color:var(--ink); border-radius:10px; padding:20px; width:100%; max-width:380px;
     max-height:85vh; overflow-y:auto; box-shadow:0 12px 30px rgba(0,0,0,0.4);
   }
-  .receipt-header{ font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:0.03em; margin-bottom:10px; }
-  .receipt-field{ font-family:'Space Mono',monospace; font-size:14.5px; margin-bottom:4px; }
-  .receipt-section{ margin-top:12px; border-top:1px dashed var(--line); padding-top:8px; }
-  .receipt-section-title{ font-family:'Bebas Neue',sans-serif; font-size:17px; margin-bottom:4px; }
-  .receipt-line{ display:flex; justify-content:space-between; font-family:'Space Mono',monospace; font-size:14px; padding:2px 0; }
+  .receipt-header{ font-family:'Bebas Neue',sans-serif; font-size:26px; line-height:1.3; letter-spacing:0.03em; margin-bottom:12px; }
+  .receipt-field{ font-family:'Space Mono',monospace; font-size:14.5px; line-height:1.5; margin-bottom:6px; }
+  .receipt-section{ margin-top:14px; border-top:1px dashed var(--line); padding-top:10px; }
+  .receipt-section-title{ font-family:'Bebas Neue',sans-serif; font-size:17px; line-height:1.4; margin-bottom:6px; }
+  .receipt-line{ display:flex; justify-content:space-between; gap:10px; font-family:'Space Mono',monospace; font-size:14px; line-height:1.5; padding:3px 0; }
+  .tienda-cobro{ margin:10px 0 4px; padding:10px 12px; background:var(--paper-2); border-radius:8px; }
+  .tienda-cobro .qt-row{ display:flex; justify-content:space-between; align-items:center; font-family:'Space Mono',monospace; font-size:14px; line-height:1.5; padding:3px 0; }
+  .tienda-cobro .qt-total{ font-family:'Bebas Neue',sans-serif; font-size:22px; line-height:1.3; margin-top:4px; padding-top:6px; border-top:1px dashed var(--line); }
+  .tienda-cobro .tc-desc-pct{ width:56px; text-align:center; }
+  .tienda-cobro .tc-hint{ font-family:'Space Mono',monospace; font-size:12px; line-height:1.4; color:var(--ink-soft); margin-top:4px; }
   .receipt-actions{ display:flex; gap:8px; margin-top:16px; }
   .receipt-actions button{
     flex:1; padding:10px; border:none; border-radius:6px; font-family:'Bebas Neue',sans-serif; font-size:19px; cursor:pointer;
@@ -789,6 +794,14 @@
     <div class="caja-card">
       <h3>Lo que más se vende en tiendas</h3>
       <div id="topProductsList" class="hint">Aún no hay visitas registradas.</div>
+    </div>
+
+    <div class="caja-card">
+      <h3>Cobro por entregas a tiendas</h3>
+      <div class="hint" style="margin-bottom:8px;">Como suelen ser pedidos chicos, se aplica este descuento por defecto en cada entrega nueva. Puedes ajustarlo en cada visita sin afectar este valor general.</div>
+      <label class="mono" style="display:block; font-size:14px; color:var(--ink-soft); margin-bottom:4px;">Descuento por defecto (%)</label>
+      <input type="number" id="tiendaDescPctCfg" min="0" max="100" step="0.5" value="5" style="width:100%; margin-bottom:10px;">
+      <button class="menu-btn secondary" id="tiendaDescSaveBtn" style="width:100%;">Guardar</button>
     </div>
 
     <div class="inv-add">
@@ -2236,6 +2249,70 @@ async function fetchAllVisitas(){
 
 let expandedTiendaId = null;
 
+// ---------------- cobro por entregas a tiendas (pedidos chicos) ----------------
+const TIENDA_COBRO_KEY = 'tiendaCobroConfig';
+const DEFAULT_TIENDA_DESC_PCT = 5;
+let tiendaDescPctCache = null;
+
+async function loadTiendaDescPct(){
+  try{
+    const r = await window.storage.get(TIENDA_COBRO_KEY, true);
+    if(r && r.value){
+      const v = JSON.parse(r.value);
+      tiendaDescPctCache = (typeof v.descPct === 'number') ? v.descPct : DEFAULT_TIENDA_DESC_PCT;
+      return tiendaDescPctCache;
+    }
+  }catch(e){
+    if(tiendaDescPctCache != null) return tiendaDescPctCache;
+  }
+  tiendaDescPctCache = DEFAULT_TIENDA_DESC_PCT;
+  return tiendaDescPctCache;
+}
+
+// precio de catálogo (favoritos o mini hotcakes) para un nombre de producto, de forma síncrona
+function precioCatalogoSync(nombre){
+  if(!nombre) return 0;
+  if(/^Mini hotcakes/i.test(nombre)) return HOTCAKES_PRICE;
+  const favs = favsCache || [];
+  const fav = favs.find(f => f.name.toLowerCase() === nombre.toLowerCase());
+  return fav ? (fav.price || 0) : 0;
+}
+
+// recalcula el subtotal/total a cobrar de una tienda según lo que se deja hoy
+function recalcTiendaCobro(tiendaId){
+  const header = document.querySelector(`.tienda-header[data-id="${tiendaId}"]`);
+  if(!header) return;
+  const card = header.closest('.tienda-card');
+  const cobroBox = card.querySelector('.tienda-cobro');
+  if(!cobroBox) return;
+  const rows = Array.from(card.querySelectorAll('.visita-dejado-rows .visita-row'));
+  let subtotal = 0;
+  rows.forEach(r => {
+    const nombre = getVisitaRowName(r);
+    const qty = parseInt(r.querySelector('.vr-qty').value)||0;
+    subtotal += precioCatalogoSync(nombre) * qty;
+  });
+  const descInput = cobroBox.querySelector('.tc-desc-pct');
+  const descPct = parseFloat(descInput.value)||0;
+  const total = subtotal * (1 - descPct/100);
+  cobroBox.querySelector('.tc-subtotal').textContent = '$' + subtotal.toFixed(2);
+  cobroBox.querySelector('.tc-total').textContent = '$' + total.toFixed(2);
+}
+
+document.getElementById('tiendaDescSaveBtn').onclick = async () => {
+  const btn = document.getElementById('tiendaDescSaveBtn');
+  const val = parseFloat(document.getElementById('tiendaDescPctCfg').value)||0;
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try{
+    await withRetry(() => window.storage.set(TIENDA_COBRO_KEY, JSON.stringify({ descPct: val }), true));
+    tiendaDescPctCache = val;
+    showToast('Descuento guardado ✓');
+  }catch(e){
+    showToast('No se pudo guardar');
+  }
+  btn.disabled = false; btn.textContent = 'Guardar';
+};
+
 async function renderTiendas(){
   const [tiendas, visitas] = await Promise.all([fetchAllTiendas(), fetchAllVisitas()]);
 
@@ -2255,6 +2332,10 @@ async function renderTiendas(){
   if(tiendas.length===0){ listEl.innerHTML = '<div class="hint">Aún no agregas tiendas.</div>'; return; }
 
   await loadFavs();
+  await loadTiendaDescPct();
+  const descPctDefault = tiendaDescPctCache != null ? tiendaDescPctCache : DEFAULT_TIENDA_DESC_PCT;
+  const cfgInput = document.getElementById('tiendaDescPctCfg');
+  if(cfgInput && document.activeElement !== cfgInput) cfgInput.value = descPctDefault;
 
   listEl.innerHTML = tiendas.map(t => {
     const tVisitas = visitas.filter(v => v.tiendaId===t.id);
@@ -2292,6 +2373,16 @@ async function renderTiendas(){
         <div class="visita-dejado-rows" data-tid="${t.id}"></div>
         <button type="button" class="visita-add-row-btn add-dejado-row" data-tid="${t.id}">+ agregar producto dejado</button>
 
+        <div class="tienda-cobro" data-tid="${t.id}">
+          <div class="qt-row"><span>Subtotal</span><span class="tc-subtotal">$0.00</span></div>
+          <div class="qt-row">
+            <span>Descuento</span>
+            <span><input type="number" class="tc-desc-pct" min="0" max="100" step="0.5" value="${descPctDefault}">%</span>
+          </div>
+          <div class="qt-row qt-total"><span>Total a cobrar</span><span class="tc-total">$0.00</span></div>
+          <div class="tc-hint">Solo para tu control — no aparece en el recibo de entrega.</div>
+        </div>
+
         <div class="hint" style="margin:12px 0 4px;">Lo que te regresaron (merma, no vendido):</div>
         <div class="visita-merma-rows" data-tid="${t.id}"></div>
         <button type="button" class="visita-add-row-btn add-merma-row" data-tid="${t.id}">+ agregar producto de merma</button>
@@ -2305,6 +2396,7 @@ async function renderTiendas(){
               <span class="vh-date">${v.fecha}</span>${v.quien?` · recibió: ${escapeHtml(v.quien)}`:''} —
               dejó: ${(v.dejado||[]).map(p=>`${escapeHtml(p.nombre)} x${p.cantidad}`).join(', ')||'—'} |
               merma: ${(v.merma||[]).map(p=>`${escapeHtml(p.nombre)} x${p.cantidad}`).join(', ')||'—'}
+              ${v.cobro ? `<br><span style="color:var(--ink-soft);">Cobro (${v.cobro.descPct}% desc.): $${v.cobro.total.toFixed(2)}</span>` : ''}
             </div>`).join('') : '<div class="hint">Sin visitas todavía.</div>'}
         </div>
 
@@ -2318,10 +2410,14 @@ async function renderTiendas(){
     h.onclick = () => { expandedTiendaId = (expandedTiendaId===h.dataset.id) ? null : h.dataset.id; renderTiendas(); };
   });
   listEl.querySelectorAll('.add-dejado-row').forEach(b => {
-    b.onclick = (ev) => { ev.stopPropagation(); addVisitaRow(document.querySelector(`.visita-dejado-rows[data-tid="${b.dataset.tid}"]`)); };
+    b.onclick = (ev) => { ev.stopPropagation(); addVisitaRow(document.querySelector(`.visita-dejado-rows[data-tid="${b.dataset.tid}"]`)); recalcTiendaCobro(b.dataset.tid); };
   });
   listEl.querySelectorAll('.add-merma-row').forEach(b => {
     b.onclick = (ev) => { ev.stopPropagation(); addVisitaRow(document.querySelector(`.visita-merma-rows[data-tid="${b.dataset.tid}"]`)); };
+  });
+  listEl.querySelectorAll('.tienda-cobro').forEach(box => {
+    box.querySelector('.tc-desc-pct').oninput = () => recalcTiendaCobro(box.dataset.tid);
+    box.addEventListener('click', ev => ev.stopPropagation());
   });
   listEl.querySelectorAll('.visita-save').forEach(b => {
     b.onclick = (ev) => { ev.stopPropagation(); saveVisita(b.dataset.tid); };
@@ -2341,6 +2437,8 @@ async function renderTiendas(){
   listEl.querySelectorAll('.visita-dejado-rows, .visita-merma-rows').forEach(el => {
     if(el.children.length===0) addVisitaRow(el);
   });
+  // calcular el cobro inicial de la tienda que esté abierta
+  listEl.querySelectorAll('.tienda-cobro').forEach(box => recalcTiendaCobro(box.dataset.tid));
 }
 
 function addVisitaRow(container){
@@ -2352,6 +2450,7 @@ function addVisitaRow(container){
     <select class="vr-name-select">
       <option value="">Selecciona producto…</option>
       ${options}
+      <option value="Mini hotcakes">Mini hotcakes</option>
       <option value="__otro__">Otro (escribir)…</option>
     </select>
     <input type="text" class="vr-name-custom" placeholder="Nombre del producto" style="display:none;">
@@ -2364,9 +2463,18 @@ function addVisitaRow(container){
     const isOtro = sel.value === '__otro__';
     custom.style.display = isOtro ? '' : 'none';
     if(isOtro) custom.focus();
+    onVisitaRowChanged(row);
   };
-  row.querySelector('.vr-del').onclick = () => row.remove();
+  row.querySelector('.vr-qty').oninput = () => onVisitaRowChanged(row);
+  custom.oninput = () => onVisitaRowChanged(row);
+  row.querySelector('.vr-del').onclick = () => { const tid = row.closest('[data-tid]')?.dataset.tid; row.remove(); if(tid) recalcTiendaCobro(tid); };
   container.appendChild(row);
+}
+
+// notifica al bloque de cobro cuando cambia un producto/cantidad en "lo que dejas hoy"
+function onVisitaRowChanged(row){
+  const tid = row.closest('.visita-dejado-rows')?.dataset.tid;
+  if(tid) recalcTiendaCobro(tid);
 }
 
 function getVisitaRowName(row){
@@ -2391,8 +2499,14 @@ async function saveVisita(tiendaId){
 
   if(dejado.length===0 && merma.length===0){ showToast('Agrega al menos un producto'); return; }
 
+  // cobro (solo para control interno del negocio, no se muestra en el recibo)
+  const cobroBox = card.querySelector('.tienda-cobro');
+  const subtotal = dejado.reduce((s,p) => s + precioCatalogoSync(p.nombre)*p.cantidad, 0);
+  const descPct = cobroBox ? (parseFloat(cobroBox.querySelector('.tc-desc-pct').value)||0) : 0;
+  const totalCobro = subtotal * (1 - descPct/100);
+
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
-  const visita = { id, tiendaId, fecha, quien, dejado, merma, ts: Date.now() };
+  const visita = { id, tiendaId, fecha, quien, dejado, merma, cobro:{ subtotal, descPct, total: totalCobro }, ts: Date.now() };
   const btn = card.querySelector('.visita-save');
   btn.disabled = true; btn.textContent = 'Guardando…';
   try{
