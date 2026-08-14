@@ -2443,6 +2443,7 @@ function showReceiptModal(nombreTienda, visita){
         ${visita.merma.length ? visita.merma.map(p=>`<div class="receipt-line"><span>${escapeHtml(p.nombre)}</span><span>x${p.cantidad}</span></div>`).join('') : '<div class="receipt-line hint">(nada)</div>'}
       </div>
       <div class="receipt-actions">
+        <button type="button" id="receiptPdfBtn">Descargar PDF</button>
         <button type="button" id="receiptShareBtn">Compartir</button>
         <button type="button" id="receiptCloseBtn">Cerrar</button>
       </div>
@@ -2457,6 +2458,113 @@ function showReceiptModal(nombreTienda, visita){
       catch(e){ showToast('No se pudo copiar el recibo'); }
     }
   };
+  overlay.querySelector('#receiptPdfBtn').onclick = async () => {
+    const btn = overlay.querySelector('#receiptPdfBtn');
+    btn.disabled = true; btn.textContent = 'Generando…';
+    let node = null;
+    try{
+      node = buildReceiptPoster(nombreTienda, visita);
+      document.body.appendChild(node);
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const fullWidth = node.scrollWidth;
+      const fullHeight = node.scrollHeight;
+      const canvas = await html2canvas(node, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        width: fullWidth,
+        height: fullHeight,
+        windowWidth: fullWidth,
+        windowHeight: fullHeight
+      });
+      const { jsPDF } = window.jspdf;
+      const pdfW = canvas.width/2;
+      const pdfH = canvas.height/2;
+      const pdf = new jsPDF({ unit:'px', orientation: pdfW > pdfH ? 'l' : 'p', format:[pdfW, pdfH] });
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pdfW, pdfH);
+      const safeTienda = (nombreTienda||'tienda').replace(/[^a-z0-9]+/gi,'-').toLowerCase();
+      pdf.save(`recibo-${safeTienda}-${visita.fecha}.pdf`);
+      showToast('Recibo descargado ✓');
+    }catch(e){
+      showToast('No se pudo generar el PDF');
+    }
+    if(node) node.remove();
+    btn.disabled = false; btn.textContent = 'Descargar PDF';
+  };
+}
+
+function buildReceiptPoster(nombreTienda, visita){
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed; left:-99999px; top:0; width:1080px; background:#ffffff; color:#241f18; font-family:"Libre Franklin",sans-serif; padding:0;';
+
+  const rowsHtml = (items) => items.length
+    ? items.map(p => `
+      <tr>
+        <td style="padding:12px 10px; border-bottom:1px solid #e6dccb; font-size:22px; word-break:break-word;">${escapeHtml(p.nombre)}</td>
+        <td style="padding:12px 10px; border-bottom:1px solid #e6dccb; font-size:22px; text-align:right;">x${p.cantidad}</td>
+      </tr>`).join('')
+    : `<tr><td colspan="2" style="padding:12px 10px; font-size:20px; color:#5a5347; font-style:italic;">(nada)</td></tr>`;
+
+  wrap.innerHTML = `
+    <div style="padding:50px 56px; border:6px solid #e07a95; box-sizing:border-box; width:1080px; overflow:hidden;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:8px;">
+        <div style="display:flex; align-items:center; gap:16px; min-width:0;">
+          <img src="${LOGO_DATA_URI}" style="width:100px; height:100px; object-fit:contain; flex-shrink:0;">
+          <div style="min-width:0;">
+            <div style="font-family:'Yellowtail',cursive; font-size:44px; color:#3a1420; line-height:1; white-space:nowrap;">El Sabor de Mamá</div>
+            <div style="font-family:'Space Mono',monospace; font-size:14px; color:#c05c76; letter-spacing:1.5px; text-transform:uppercase; white-space:nowrap;">Gelatinas &amp; postres caseros</div>
+          </div>
+        </div>
+        <div style="text-align:right; flex-shrink:0;">
+          <div style="font-family:'Bebas Neue',sans-serif; font-size:36px; letter-spacing:2px; color:#3a1420;">RECIBO DE ENTREGA</div>
+          <div style="font-family:'Space Mono',monospace; font-size:15px; color:#5a5347; white-space:nowrap;">Fecha: ${escapeHtml(visita.fecha)}</div>
+        </div>
+      </div>
+
+      <div style="margin-top:30px; padding:16px 20px; background:#fdedf1; border-radius:10px; display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+        <div>
+          <div style="font-family:'Space Mono',monospace; font-size:15px; color:#c05c76; text-transform:uppercase; letter-spacing:1px;">Tienda</div>
+          <div style="font-family:'Bebas Neue',sans-serif; font-size:26px; color:#3a1420;">${escapeHtml(nombreTienda)}</div>
+        </div>
+        <div>
+          <div style="font-family:'Space Mono',monospace; font-size:15px; color:#c05c76; text-transform:uppercase; letter-spacing:1px;">Quien recibe</div>
+          <div style="font-family:'Bebas Neue',sans-serif; font-size:26px; color:#3a1420;">${escapeHtml(visita.quien || '—')}</div>
+        </div>
+      </div>
+
+      <div style="margin-top:28px; font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:1px; color:#3a1420;">SE DEJA</div>
+      <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin-top:8px;">
+        <colgroup><col style="width:70%"><col style="width:30%"></colgroup>
+        <thead>
+          <tr style="background:#e07a95; color:#fff8f8;">
+            <th style="padding:10px; text-align:left; font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:1px;">Producto</th>
+            <th style="padding:10px; text-align:right; font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:1px;">Cantidad</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml(visita.dejado)}</tbody>
+      </table>
+
+      <div style="margin-top:28px; font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:1px; color:#3a1420;">SE RETIRA (merma / no vendido)</div>
+      <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin-top:8px;">
+        <colgroup><col style="width:70%"><col style="width:30%"></colgroup>
+        <thead>
+          <tr style="background:#3a1420; color:#fdf5ec;">
+            <th style="padding:10px; text-align:left; font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:1px;">Producto</th>
+            <th style="padding:10px; text-align:right; font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:1px;">Cantidad</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml(visita.merma)}</tbody>
+      </table>
+
+      <div style="margin-top:36px; padding-top:20px; border-top:2px dashed #e6b7c2; font-family:'Space Mono',monospace; font-size:14px; color:#5a5347;">
+        Este documento confirma la entrega realizada en la tienda indicada.<br>
+        Cualquier duda, escríbenos por WhatsApp. ¡Gracias por tu preferencia! ♥
+      </div>
+    </div>
+  `;
+  return wrap;
 }
 
 // ---------------- ubicación (pin GPS) ----------------
