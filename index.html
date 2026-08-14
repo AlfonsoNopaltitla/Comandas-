@@ -525,11 +525,12 @@
   .tienda-cobro .qt-total{ font-family:'Bebas Neue',sans-serif; font-size:22px; line-height:1.3; margin-top:4px; padding-top:6px; border-top:1px dashed var(--line); }
   .tienda-cobro .tc-desc-pct{ width:56px; text-align:center; }
   .tienda-cobro .tc-hint{ font-family:'Space Mono',monospace; font-size:12px; line-height:1.4; color:var(--ink-soft); margin-top:4px; }
-  .receipt-actions{ display:flex; gap:8px; margin-top:16px; }
+  .receipt-actions{ display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
   .receipt-actions button{
-    flex:1; padding:10px; border:none; border-radius:6px; font-family:'Bebas Neue',sans-serif; font-size:19px; cursor:pointer;
+    flex:1 1 auto; min-width:110px; padding:10px; border:none; border-radius:6px; font-family:'Bebas Neue',sans-serif; font-size:19px; cursor:pointer;
   }
   #receiptShareBtn{ background:var(--stamp); color:#fdf5ec; }
+  #receiptWhatsappBtn{ background:#25D366; color:#fff; }
   #receiptCloseBtn{ background:var(--paper-2); color:var(--ink); border:1.5px solid var(--line); }
   .visita-add-row-btn{
     background:transparent; border:1px dashed var(--line); color:var(--ink-soft); border-radius:6px;
@@ -810,6 +811,9 @@
       </div>
       <div class="inv-add-row">
         <input type="text" id="tiendaUbicacion" placeholder="Referencia (opcional, ej. frente a la farmacia)">
+      </div>
+      <div class="inv-add-row">
+        <input type="text" id="tiendaTelefono" placeholder="Teléfono de contacto (opcional, para enviar por WhatsApp)">
       </div>
       <div class="inv-add-row">
         <button type="button" id="tiendaPinBtn" class="pin-btn">📍 Fijar ubicación con GPS</button>
@@ -2362,6 +2366,9 @@ async function renderTiendas(){
       <div class="tienda-body" style="display:${open?'':'none'};">
         <button type="button" class="tienda-pin-update" data-tid="${t.id}">📍 ${hasPin?'Actualizar':'Fijar'} ubicación GPS</button>
 
+        <label class="mono" style="display:block; font-size:13.5px; color:var(--ink-soft); margin-bottom:4px;">Teléfono de contacto (para enviar el recibo por WhatsApp)</label>
+        <input type="text" class="tienda-tel-input" data-tid="${t.id}" value="${escapeAttr(t.telefono||'')}" placeholder="Ej. 4461234567" style="width:100%; margin-bottom:12px;">
+
         <h4>Registrar visita</h4>
         <label class="mono" style="display:block; font-size:13.5px; color:var(--ink-soft); margin-bottom:4px;">Fecha</label>
         <input type="date" class="visitaFecha" value="${new Date().toISOString().slice(0,10)}" style="width:100%; margin-bottom:10px;">
@@ -2499,11 +2506,14 @@ async function saveVisita(tiendaId){
 
   if(dejado.length===0 && merma.length===0){ showToast('Agrega al menos un producto'); return; }
 
-  // cobro (solo para control interno del negocio, no se muestra en el recibo)
+  // cobro (solo para control interno del negocio, no se muestra el % en el recibo)
   const cobroBox = card.querySelector('.tienda-cobro');
   const subtotal = dejado.reduce((s,p) => s + precioCatalogoSync(p.nombre)*p.cantidad, 0);
   const descPct = cobroBox ? (parseFloat(cobroBox.querySelector('.tc-desc-pct').value)||0) : 0;
   const totalCobro = subtotal * (1 - descPct/100);
+
+  const telInput = card.querySelector('.tienda-tel-input');
+  const telefono = telInput ? telInput.value.trim() : '';
 
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
   const visita = { id, tiendaId, fecha, quien, dejado, merma, cobro:{ subtotal, descPct, total: totalCobro }, ts: Date.now() };
@@ -2511,8 +2521,20 @@ async function saveVisita(tiendaId){
   btn.disabled = true; btn.textContent = 'Guardando…';
   try{
     await withRetry(() => window.storage.set('visita:'+id, JSON.stringify(visita), true));
+    // guarda el teléfono de contacto en la tienda si cambió
+    try{
+      const tr = await window.storage.get('tienda:'+tiendaId, true);
+      if(tr && tr.value){
+        const tdata = JSON.parse(tr.value);
+        if((tdata.telefono||'') !== telefono){
+          tdata.telefono = telefono;
+          await withRetry(() => window.storage.set('tienda:'+tiendaId, JSON.stringify(tdata), true));
+        }
+      }
+    }catch(e){}
+    await loadMenuExtras();
     showToast('Visita guardada ✓');
-    showReceiptModal(nombreTienda, visita);
+    showReceiptModal(nombreTienda, visita, telefono);
     renderTiendas();
   }catch(e){
     showToast('No se pudo guardar, intenta de nuevo');
@@ -2522,6 +2544,8 @@ async function saveVisita(tiendaId){
 
 // ---------------- recibo de entrega ----------------
 function buildReceiptText(nombreTienda, visita){
+  const extras = menuExtrasCache || DEFAULT_MENU_EXTRAS;
+  const phones = [extras.phone1, extras.phone2].filter(p => p && p.trim());
   const lines = [];
   lines.push('EL SABOR DE MAMÁ — Recibo de entrega');
   lines.push('Tienda: ' + nombreTienda);
@@ -2535,11 +2559,20 @@ function buildReceiptText(nombreTienda, visita){
   lines.push('SE RETIRA (merma / no vendido):');
   if(visita.merma.length) visita.merma.forEach(p => lines.push('  · ' + p.nombre + ' x' + p.cantidad));
   else lines.push('  (nada)');
+  lines.push('');
+  lines.push('TOTAL A COBRAR: $' + ((visita.cobro && visita.cobro.total) || 0).toFixed(2));
+  if(phones.length){
+    lines.push('');
+    lines.push('Dudas o aclaraciones: ' + phones.join(' · '));
+  }
   return lines.join('\n');
 }
 
-function showReceiptModal(nombreTienda, visita){
+function showReceiptModal(nombreTienda, visita, telefono){
   const text = buildReceiptText(nombreTienda, visita);
+  const extras = menuExtrasCache || DEFAULT_MENU_EXTRAS;
+  const phones = [extras.phone1, extras.phone2].filter(p => p && p.trim());
+  const totalCobro = (visita.cobro && visita.cobro.total) || 0;
   const overlay = document.createElement('div');
   overlay.className = 'receipt-overlay';
   overlay.innerHTML = `
@@ -2556,9 +2589,18 @@ function showReceiptModal(nombreTienda, visita){
         <div class="receipt-section-title">Se retira (merma / no vendido)</div>
         ${visita.merma.length ? visita.merma.map(p=>`<div class="receipt-line"><span>${escapeHtml(p.nombre)}</span><span>x${p.cantidad}</span></div>`).join('') : '<div class="receipt-line hint">(nada)</div>'}
       </div>
+      <div class="receipt-section">
+        <div class="receipt-line" style="font-family:'Bebas Neue',sans-serif; font-size:22px;"><span>Total a cobrar</span><span>$${totalCobro.toFixed(2)}</span></div>
+      </div>
+      ${phones.length ? `
+      <div class="receipt-section">
+        <div class="receipt-section-title">Dudas o aclaraciones</div>
+        <div class="receipt-line"><span>${phones.map(escapeHtml).join(' · ')}</span></div>
+      </div>` : ''}
       <div class="receipt-actions">
         <button type="button" id="receiptPdfBtn">Descargar PDF</button>
         <button type="button" id="receiptShareBtn">Compartir</button>
+        ${telefono ? '<button type="button" id="receiptWhatsappBtn">Enviar por WhatsApp</button>' : ''}
         <button type="button" id="receiptCloseBtn">Cerrar</button>
       </div>
     </div>`;
@@ -2607,11 +2649,64 @@ function showReceiptModal(nombreTienda, visita){
     if(node) node.remove();
     btn.disabled = false; btn.textContent = 'Descargar PDF';
   };
+  const waBtn = overlay.querySelector('#receiptWhatsappBtn');
+  if(waBtn){
+    waBtn.onclick = async () => {
+      waBtn.disabled = true; waBtn.textContent = 'Preparando…';
+      let node = null;
+      try{
+        node = buildReceiptPoster(nombreTienda, visita);
+        document.body.appendChild(node);
+        if (document.fonts && document.fonts.ready) { await document.fonts.ready; }
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const fullWidth = node.scrollWidth;
+        const fullHeight = node.scrollHeight;
+        const canvas = await html2canvas(node, {
+          scale: 2, backgroundColor: '#ffffff',
+          width: fullWidth, height: fullHeight, windowWidth: fullWidth, windowHeight: fullHeight
+        });
+        const { jsPDF } = window.jspdf;
+        const pdfW = canvas.width/2;
+        const pdfH = canvas.height/2;
+        const pdf = new jsPDF({ unit:'px', orientation: pdfW > pdfH ? 'l' : 'p', format:[pdfW, pdfH] });
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pdfW, pdfH);
+        const safeTienda = (nombreTienda||'tienda').replace(/[^a-z0-9]+/gi,'-').toLowerCase();
+        const fileName = `recibo-${safeTienda}-${visita.fecha}.pdf`;
+        const waText = `Recibo de entrega — El Sabor de Mamá (${nombreTienda}, ${visita.fecha})`;
+
+        let digits = (telefono||'').replace(/\D/g,'');
+        if(digits.length===10) digits = '52' + digits;
+
+        const pdfBlob = pdf.output('blob');
+        const file = new File([pdfBlob], fileName, { type:'application/pdf' });
+
+        if(navigator.canShare && navigator.canShare({ files:[file] })){
+          await navigator.share({ files:[file], text: waText, title:'Recibo de entrega' });
+          showToast('Elige WhatsApp y el contacto para enviarlo ✓');
+        } else {
+          pdf.save(fileName);
+          const waUrl = digits
+            ? `https://wa.me/${digits}?text=${encodeURIComponent(waText + ' — te comparto el PDF que acabo de descargar.')}`
+            : `https://wa.me/?text=${encodeURIComponent(waText)}`;
+          window.open(waUrl, '_blank');
+          showToast('PDF descargado — adjúntalo en el chat de WhatsApp');
+        }
+      }catch(e){
+        showToast('No se pudo preparar el envío');
+      }
+      if(node) node.remove();
+      waBtn.disabled = false; waBtn.textContent = 'Enviar por WhatsApp';
+    };
+  }
 }
 
 function buildReceiptPoster(nombreTienda, visita){
   const wrap = document.createElement('div');
   wrap.style.cssText = 'position:fixed; left:-99999px; top:0; width:1080px; background:#ffffff; color:#241f18; font-family:"Libre Franklin",sans-serif; padding:0;';
+
+  const extras = menuExtrasCache || DEFAULT_MENU_EXTRAS;
+  const phones = [extras.phone1, extras.phone2].filter(p => p && p.trim());
+  const totalCobro = (visita.cobro && visita.cobro.total) || 0;
 
   const rowsHtml = (items) => items.length
     ? items.map(p => `
@@ -2672,9 +2767,14 @@ function buildReceiptPoster(nombreTienda, visita){
         <tbody>${rowsHtml(visita.merma)}</tbody>
       </table>
 
+      <div style="margin-top:24px; margin-left:auto; width:340px; display:flex; justify-content:space-between; align-items:baseline; padding:14px 18px; background:#fdedf1; border-radius:10px;">
+        <span style="font-family:'Space Mono',monospace; font-size:16px; color:#c05c76; text-transform:uppercase; letter-spacing:1px;">Total a cobrar</span>
+        <span style="font-family:'Bebas Neue',sans-serif; font-size:32px; color:#3a1420;">$${totalCobro.toFixed(2)}</span>
+      </div>
+
       <div style="margin-top:36px; padding-top:20px; border-top:2px dashed #e6b7c2; font-family:'Space Mono',monospace; font-size:14px; color:#5a5347;">
         Este documento confirma la entrega realizada en la tienda indicada.<br>
-        Cualquier duda, escríbenos por WhatsApp. ¡Gracias por tu preferencia! ♥
+        ${phones.length ? `Dudas o aclaraciones: ${phones.map(escapeHtml).join(' · ')}. ` : ''}¡Gracias por tu preferencia! ♥
       </div>
     </div>
   `;
@@ -2725,16 +2825,18 @@ async function updateTiendaLocation(tiendaId, btn){
 document.getElementById('tiendaAddBtn').onclick = async () => {
   const nombre = document.getElementById('tiendaName').value.trim();
   const ubicacion = document.getElementById('tiendaUbicacion').value.trim();
+  const telefono = document.getElementById('tiendaTelefono').value.trim();
   if(!nombre){ showToast('Falta el nombre de la tienda'); return; }
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
   const btn = document.getElementById('tiendaAddBtn');
   btn.disabled = true; btn.textContent = 'Guardando…';
-  const data = { id, nombre, ubicacion, ts: Date.now() };
+  const data = { id, nombre, ubicacion, telefono, ts: Date.now() };
   if(pendingTiendaCoords){ data.lat = pendingTiendaCoords.lat; data.lng = pendingTiendaCoords.lng; }
   try{
     await withRetry(() => window.storage.set('tienda:'+id, JSON.stringify(data), true));
     document.getElementById('tiendaName').value = '';
     document.getElementById('tiendaUbicacion').value = '';
+    document.getElementById('tiendaTelefono').value = '';
     document.getElementById('tiendaPinStatus').textContent = 'Sin ubicación fijada todavía.';
     document.getElementById('tiendaPinBtn').textContent = '📍 Fijar ubicación con GPS';
     pendingTiendaCoords = null;
