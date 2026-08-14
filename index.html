@@ -2321,16 +2321,20 @@ async function renderTiendas(){
   const [tiendas, visitas] = await Promise.all([fetchAllTiendas(), fetchAllVisitas()]);
 
   // top sellers across all stores: total dejado - total merma, by product
-  const totals = {};
-  visitas.forEach(v => {
-    (v.dejado||[]).forEach(p => { totals[p.nombre] = (totals[p.nombre]||0) + (parseInt(p.cantidad)||0); });
-    (v.merma||[]).forEach(p => { totals[p.nombre] = (totals[p.nombre]||0) - (parseInt(p.cantidad)||0); });
-  });
-  const ranked = Object.entries(totals).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
   const topEl = document.getElementById('topProductsList');
-  topEl.innerHTML = ranked.length
-    ? ranked.map(([name,qty]) => `<div class="top-prod-row"><span>${escapeHtml(name)}</span><span>${qty} vendidas (aprox.)</span></div>`).join('')
-    : 'Aún no hay visitas registradas.';
+  if(tiendas.length===0){
+    topEl.innerHTML = 'Aún no agregas tiendas.';
+  } else {
+    const totals = {};
+    visitas.forEach(v => {
+      (v.dejado||[]).forEach(p => { totals[p.nombre] = (totals[p.nombre]||0) + (parseInt(p.cantidad)||0); });
+      (v.merma||[]).forEach(p => { totals[p.nombre] = (totals[p.nombre]||0) - (parseInt(p.cantidad)||0); });
+    });
+    const ranked = Object.entries(totals).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+    topEl.innerHTML = ranked.length
+      ? ranked.map(([name,qty]) => `<div class="top-prod-row"><span>${escapeHtml(name)}</span><span>${qty} vendidas (aprox.)</span></div>`).join('')
+      : 'Aún no hay visitas registradas.';
+  }
 
   const listEl = document.getElementById('tiendaList');
   if(tiendas.length===0){ listEl.innerHTML = '<div class="hint">Aún no agregas tiendas.</div>'; return; }
