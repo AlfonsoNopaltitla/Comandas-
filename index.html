@@ -731,7 +731,10 @@
           <input type="number" id="invPrice" min="0" value="25" title="Precio">
           <input type="number" id="invStock" min="0" value="0" title="Existencias">
         </div>
-        <div class="hint" style="margin-bottom:8px;">Precio ($) y existencias iniciales</div>
+        <div class="inv-add-row">
+          <input type="number" id="invPrice2" min="0" placeholder="Precio por 2 (opcional)" title="Si vendes 2 piezas más barato, ej. 2x$30">
+        </div>
+        <div class="hint" style="margin-bottom:8px;">Precio ($) y existencias iniciales. El "precio por 2" es opcional: úsalo si cobras más barato al vender 2 piezas juntas (ej. banderillas a $20 c/u pero 2x$30).</div>
         <button id="invAddBtn">+ agregar producto al inventario</button>
       </div>
       <div id="invList"></div>
@@ -1101,6 +1104,47 @@ const LOW_STOCK = 3;
 const HOTCAKES_PRICE = 25;
 let favsCache = null;
 
+// calcula el importe de una línea aplicando precio de mayoreo por 2 piezas, si el producto lo tiene configurado
+// ej: banderilla a $20 c/u, pero 2x$30 -> 3 piezas = 1 par ($30) + 1 suelta ($20) = $50
+function calcLineAmount(qty, price, price2){
+  qty = Math.max(0, parseInt(qty)||0);
+  price = parseFloat(price)||0;
+  price2 = parseFloat(price2)||0;
+  if(price2 > 0){
+    const pares = Math.floor(qty/2);
+    const suelta = qty % 2;
+    return pares*price2 + suelta*price;
+  }
+  return qty*price;
+}
+
+// productos de ejemplo que se agregan una sola vez al inventario compartido, para que
+// aparezcan disponibles para seleccionar en Pedidos y en Cotizar
+const CATALOG_SEED_KEY = 'catalogSeedV2Done';
+const CATALOG_SEED_ITEMS = [
+  {name:'Banderilla', price:20, price2:30, stock:0},
+  {name:'Figura de Tigre', price:30, stock:0},
+  {name:'Figura de Oso', price:30, stock:0},
+  {name:'Mini hotcakes (mini)', price:25, stock:0},
+  {name:'Mini hotcakes (grande)', price:25, stock:0}
+];
+async function seedCatalogOnce(){
+  try{
+    const done = await window.storage.get(CATALOG_SEED_KEY, true);
+    if(done && done.value === '1') return;
+  }catch(e){ /* aún no se ha sembrado, seguimos */ }
+  const list = await loadFavs();
+  let changed = false;
+  CATALOG_SEED_ITEMS.forEach(item => {
+    if(!list.some(f => f.name.toLowerCase() === item.name.toLowerCase())){
+      list.push({...item});
+      changed = true;
+    }
+  });
+  if(changed) await saveFavs(list);
+  try{ await window.storage.set(CATALOG_SEED_KEY, '1', true); }catch(e){}
+}
+
 async function loadFavs(){
   try{
     const r = await window.storage.get(FAV_KEY, true);
@@ -1139,7 +1183,7 @@ async function renderFavs(){
     chip.innerHTML = `
       <div class="fav-main">
         <span class="fav-name">${escapeHtml(f.name)}</span>
-        <span class="fav-price">$${f.price}</span>
+        <span class="fav-price">$${f.price}${f.price2 ? ' · 2x$'+f.price2 : ''}</span>
         <span class="stock-tag${low?' low':''}">${f.stock}</span>
       </div>
       <div class="fav-qty">
@@ -1196,6 +1240,10 @@ async function renderInv(){
       </div>
       <button type="button" class="inv-del">✕</button>
       <label class="inv-hide-toggle">
+        <span class="mono" style="font-size:16.6px; color:var(--ink-soft); white-space:nowrap;">Precio por 2 (opcional, ej. mayoreo):</span>
+        <input type="number" class="price2-input" min="0" step="1" placeholder="ej. 30" value="${f.price2?f.price2:''}" style="width:70px; border:none; border-bottom:2px solid var(--line); background:transparent; font-family:'Space Mono',monospace; font-size:18px; padding:2px; color:var(--ink); outline:none;">
+      </label>
+      <label class="inv-hide-toggle">
         <input type="checkbox" class="oculto-input" ${f.oculto?'checked':''}>
         Ocultar del menú (no lo borra, solo no aparece en la imagen)
       </label>
@@ -1203,6 +1251,12 @@ async function renderInv(){
     row.querySelector('.price-input').onchange = async (ev) => {
       const list = await loadFavs();
       list[i].price = Math.max(0, parseInt(ev.target.value) || 0);
+      await saveFavs(list);
+      renderFavs(); renderMenu();
+    };
+    row.querySelector('.price2-input').onchange = async (ev) => {
+      const list = await loadFavs();
+      list[i].price2 = Math.max(0, parseInt(ev.target.value) || 0);
       await saveFavs(list);
       renderFavs(); renderMenu();
     };
@@ -1248,18 +1302,20 @@ document.getElementById('invAddBtn').onclick = async () => {
   const nameInput = document.getElementById('invName');
   const stockInput = document.getElementById('invStock');
   const priceInput = document.getElementById('invPrice');
+  const price2Input = document.getElementById('invPrice2');
   const name = nameInput.value.trim();
   const stock = Math.max(0, parseInt(stockInput.value) || 0);
   const price = Math.max(0, parseInt(priceInput.value) || 0);
+  const price2 = Math.max(0, parseInt(price2Input.value) || 0);
   if(!name){ showToast('Escribe un nombre de producto'); return; }
   const favs = await loadFavs();
   if(favs.some(f => f.name.toLowerCase() === name.toLowerCase())){
     showToast('Ese producto ya está en el inventario');
     return;
   }
-  favs.push({name, stock, price});
+  favs.push({name, stock, price, price2});
   await saveFavs(favs);
-  nameInput.value = ''; stockInput.value = '0'; priceInput.value = '25';
+  nameInput.value = ''; stockInput.value = '0'; priceInput.value = '25'; price2Input.value = '';
   renderInv(); renderFavs(); renderMenu();
   showToast('Producto agregado');
 };
@@ -1550,7 +1606,7 @@ async function adjustInventoryForEdit(oldProductos, newProductos){
   await decrementInventoryForOrder(newProductos);
 }
 
-renderFavs();
+seedCatalogOnce().finally(() => { renderFavs(); if(mode==='inv') renderInv(); });
 
 let invSyncFailed = false;
 async function refreshSharedInventory(){
@@ -1582,9 +1638,15 @@ async function priceForProduct(nombre){
   return fav ? fav.price : 0;
 }
 async function computeOrderTotal(productos){
+  const favs = await loadFavs();
   let total = 0;
   for(const p of productos){
-    total += (await priceForProduct(p.nombre)) * p.cantidad;
+    if(/^Mini hotcakes/i.test(p.nombre)){
+      total += p.cantidad * HOTCAKES_PRICE;
+      continue;
+    }
+    const fav = favs.find(f => f.name.toLowerCase() === p.nombre.toLowerCase());
+    total += fav ? calcLineAmount(p.cantidad, fav.price, fav.price2) : 0;
   }
   return total;
 }
@@ -2281,6 +2343,16 @@ function precioCatalogoSync(nombre){
   const fav = favs.find(f => f.name.toLowerCase() === nombre.toLowerCase());
   return fav ? (fav.price || 0) : 0;
 }
+// igual que precioCatalogoSync pero calculando el importe total de "qty" piezas,
+// aplicando el precio por 2 si el producto lo tiene configurado
+function catalogAmountSync(nombre, qty){
+  if(!nombre) return 0;
+  if(/^Mini hotcakes/i.test(nombre)) return qty*HOTCAKES_PRICE;
+  const favs = favsCache || [];
+  const fav = favs.find(f => f.name.toLowerCase() === nombre.toLowerCase());
+  if(!fav) return 0;
+  return calcLineAmount(qty, fav.price, fav.price2);
+}
 
 // recalcula el subtotal/total a cobrar de una tienda según lo que se deja hoy
 function recalcTiendaCobro(tiendaId){
@@ -2294,7 +2366,7 @@ function recalcTiendaCobro(tiendaId){
   rows.forEach(r => {
     const nombre = getVisitaRowName(r);
     const qty = parseInt(r.querySelector('.vr-qty').value)||0;
-    subtotal += precioCatalogoSync(nombre) * qty;
+    subtotal += catalogAmountSync(nombre, qty);
   });
   const descInput = cobroBox.querySelector('.tc-desc-pct');
   const descPct = parseFloat(descInput.value)||0;
@@ -2512,7 +2584,7 @@ async function saveVisita(tiendaId){
 
   // cobro (solo para control interno del negocio, no se muestra el % en el recibo)
   const cobroBox = card.querySelector('.tienda-cobro');
-  const subtotal = dejado.reduce((s,p) => s + precioCatalogoSync(p.nombre)*p.cantidad, 0);
+  const subtotal = dejado.reduce((s,p) => s + catalogAmountSync(p.nombre, p.cantidad), 0);
   const descPct = cobroBox ? (parseFloat(cobroBox.querySelector('.tc-desc-pct').value)||0) : 0;
   const totalCobro = subtotal * (1 - descPct/100);
 
@@ -2898,17 +2970,21 @@ function addQuoteLine(){
   row.className = 'quote-line';
   row.innerHTML = `
     <select class="q-prod">
-      ${favs.map(f => `<option value="${escapeHtml(f.name)}" data-price="${f.price}">${escapeHtml(f.name)}</option>`).join('')}
+      ${favs.map(f => `<option value="${escapeHtml(f.name)}" data-price="${f.price}" data-price2="${f.price2||0}">${escapeHtml(f.name)}${f.price2 ? ' — $'+f.price+'c/u (2x$'+f.price2+')' : ''}</option>`).join('')}
     </select>
     <input type="number" class="q-qty" min="1" value="1" title="Cantidad">
     <input type="number" class="q-price" min="0" value="${favs[0]?favs[0].price:25}" title="Precio unitario">
     <button type="button" class="q-del">✕</button>
   `;
+  row.dataset.price2 = favs[0] ? (favs[0].price2||0) : 0;
   const priceInput = row.querySelector('.q-price');
   const prodSelect = row.querySelector('.q-prod');
   prodSelect.onchange = () => {
     const opt = prodSelect.selectedOptions[0];
-    if(opt) priceInput.value = opt.dataset.price;
+    if(opt){
+      priceInput.value = opt.dataset.price;
+      row.dataset.price2 = opt.dataset.price2 || 0;
+    }
     recalcQuote();
   };
   row.querySelector('.q-qty').oninput = recalcQuote;
@@ -2923,7 +2999,8 @@ function getQuoteLines(){
   return Array.from(document.querySelectorAll('#qLines .quote-line')).map(r => ({
     nombre: r.querySelector('.q-prod').value,
     cantidad: parseInt(r.querySelector('.q-qty').value)||0,
-    precio: parseFloat(r.querySelector('.q-price').value)||0
+    precio: parseFloat(r.querySelector('.q-price').value)||0,
+    precio2: parseFloat(r.dataset.price2)||0
   })).filter(l => l.nombre && l.cantidad>0);
 }
 
@@ -2931,7 +3008,7 @@ function recalcQuote(){
   const cfg = quoteCfgCache || DEFAULT_QUOTE_CFG;
   const lines = getQuoteLines();
   const totalPzas = lines.reduce((s,l)=>s+l.cantidad,0);
-  const subtotal = lines.reduce((s,l)=>s+l.cantidad*l.precio,0);
+  const subtotal = lines.reduce((s,l)=>s+calcLineAmount(l.cantidad, l.precio, l.precio2),0);
 
   // suggest discount tier, but never overwrite what the user is actively typing
   const descInput = document.getElementById('qDescPct');
@@ -2985,7 +3062,7 @@ document.getElementById('qPdfBtn').onclick = async () => {
     const yieldPer = tam==='8' ? cfg.yield8 : cfg.yield6;
     const fecha = document.getElementById('qFecha').value || new Date().toISOString().slice(0,10);
     const descPct = parseFloat(document.getElementById('qDescPct').value)||0;
-    const subtotal = lines.reduce((s,l)=>s+l.cantidad*l.precio,0);
+    const subtotal = lines.reduce((s,l)=>s+calcLineAmount(l.cantidad, l.precio, l.precio2),0);
     const total = subtotal * (1 - descPct/100);
     const totalPzas = lines.reduce((s,l)=>s+l.cantidad,0);
 
@@ -3026,10 +3103,10 @@ function buildQuotePoster({ cliente, fecha, tam, yieldPer, lines, descPct, subto
   wrap.style.cssText = 'position:fixed; left:-99999px; top:0; width:1080px; background:#ffffff; color:#241f18; font-family:"Libre Franklin",sans-serif; padding:0;';
   const rowsHtml = lines.map(l => `
     <tr>
-      <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; word-break:break-word;">${escapeHtml(l.nombre)}</td>
+      <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; word-break:break-word;">${escapeHtml(l.nombre)}${l.precio2 ? ' <span style=\"font-size:14px; color:#c05c76;\">(2x$'+l.precio2.toFixed(0)+')</span>' : ''}</td>
       <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; text-align:center;">${l.cantidad}</td>
       <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; text-align:right;">$${l.precio.toFixed(2)}</td>
-      <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; text-align:right;">$${(l.cantidad*l.precio).toFixed(2)}</td>
+      <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; text-align:right;">$${calcLineAmount(l.cantidad, l.precio, l.precio2).toFixed(2)}</td>
     </tr>`).join('');
 
   wrap.innerHTML = `
