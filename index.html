@@ -672,6 +672,23 @@
 
       <div class="hc-box">
         <div class="hc-title">Mini hotcakes</div>
+        <label class="hc-check" style="gap:10px;">
+          Tamaño:
+          <select id="hcTamano" style="font-family:'Space Mono',monospace; font-size:20px; padding:4px 6px; border-radius:6px; border:1.5px solid var(--line); background:var(--paper); color:var(--ink);">
+            <option value="mini">Mini</option>
+            <option value="grande">Grande</option>
+          </select>
+          <span class="mono" style="font-size:16px; color:var(--ink-soft);">(mismo precio)</span>
+        </label>
+        <label class="hc-check" style="gap:10px;">
+          Figura:
+          <select id="hcFigura" style="font-family:'Space Mono',monospace; font-size:20px; padding:4px 6px; border-radius:6px; border:1.5px solid var(--line); background:var(--paper); color:var(--ink);">
+            <option value="redondo">Redondo</option>
+            <option value="tigre">Tigre</option>
+            <option value="oso">Oso</option>
+          </select>
+          <span class="mono" style="font-size:16px; color:var(--ink-soft);">(mismo precio)</span>
+        </label>
         <label class="hc-check"><input type="checkbox" id="hcCajeta"> Cajeta</label>
         <label class="hc-check"><input type="checkbox" id="hcMaple"> Maple</label>
         <label class="hc-check"><input type="checkbox" id="hcLechera"> Lechera</label>
@@ -1123,8 +1140,6 @@ function calcLineAmount(qty, price, price2){
 const CATALOG_SEED_KEY = 'catalogSeedV2Done';
 const CATALOG_SEED_ITEMS = [
   {name:'Banderilla', price:20, price2:30, stock:0},
-  {name:'Figura de Tigre', price:30, stock:0},
-  {name:'Figura de Oso', price:30, stock:0},
   {name:'Mini hotcakes (mini)', price:25, stock:0},
   {name:'Mini hotcakes (grande)', price:25, stock:0}
 ];
@@ -1143,6 +1158,20 @@ async function seedCatalogOnce(){
   });
   if(changed) await saveFavs(list);
   try{ await window.storage.set(CATALOG_SEED_KEY, '1', true); }catch(e){}
+}
+
+// las figuras de Tigre/Oso se agregaron por error como productos aparte; esto las quita
+// una sola vez del inventario, ya que ahora son solo una opción de forma del mini hotcake
+const FIGURA_CLEANUP_KEY = 'figuraStandaloneCleanupV1Done';
+async function cleanupStandaloneFigurasOnce(){
+  try{
+    const done = await window.storage.get(FIGURA_CLEANUP_KEY, true);
+    if(done && done.value === '1') return;
+  }catch(e){ /* aún no se ha limpiado, seguimos */ }
+  const list = await loadFavs();
+  const filtered = list.filter(f => !/^Figura de (Tigre|Oso)$/i.test(f.name.trim()));
+  if(filtered.length !== list.length) await saveFavs(filtered);
+  try{ await window.storage.set(FIGURA_CLEANUP_KEY, '1', true); }catch(e){}
 }
 
 async function loadFavs(){
@@ -1169,7 +1198,7 @@ async function saveFavs(list){
 }
 
 async function renderFavs(){
-  const favs = await loadFavs();
+  const favs = (await loadFavs()).filter(f => !/^Mini hotcakes/i.test(f.name));
   const el = document.getElementById('favList');
   el.innerHTML = '';
   if(favs.length === 0){
@@ -1574,7 +1603,8 @@ async function decrementInventoryForOrder(productos){
     const favs = await loadFavs();
     let changed = false;
     productos.forEach(p => {
-      const fav = favs.find(f => f.name.toLowerCase() === p.nombre.toLowerCase());
+      const baseName = baseCatalogName(p.nombre);
+      const fav = favs.find(f => f.name.toLowerCase() === baseName.toLowerCase());
       if(fav){
         fav.stock = Math.max(0, fav.stock - p.cantidad);
         changed = true;
@@ -1589,7 +1619,8 @@ async function restoreInventoryForOrder(productos){
     const favs = await loadFavs();
     let changed = false;
     productos.forEach(p => {
-      const fav = favs.find(f => f.name.toLowerCase() === p.nombre.toLowerCase());
+      const baseName = baseCatalogName(p.nombre);
+      const fav = favs.find(f => f.name.toLowerCase() === baseName.toLowerCase());
       if(fav){
         fav.stock = fav.stock + p.cantidad;
         changed = true;
@@ -1606,7 +1637,9 @@ async function adjustInventoryForEdit(oldProductos, newProductos){
   await decrementInventoryForOrder(newProductos);
 }
 
-seedCatalogOnce().finally(() => { renderFavs(); if(mode==='inv') renderInv(); });
+seedCatalogOnce()
+  .then(cleanupStandaloneFigurasOnce)
+  .finally(() => { renderFavs(); if(mode==='inv') renderInv(); });
 
 let invSyncFailed = false;
 async function refreshSharedInventory(){
@@ -1637,6 +1670,17 @@ async function priceForProduct(nombre){
   const fav = favs.find(f => f.name.toLowerCase() === nombre.toLowerCase());
   return fav ? fav.price : 0;
 }
+// quita el tamaño/variante del nombre para encontrar el producto base en el catálogo
+// ej: "Mini hotcakes grande figura tigre (cajeta)" -> "Mini hotcakes (grande)"
+function baseCatalogName(nombre){
+  if(!nombre) return nombre;
+  if(/^Mini hotcakes/i.test(nombre)){
+    const tMatch = nombre.match(/^Mini hotcakes (mini|grande)/i);
+    return tMatch ? `Mini hotcakes (${tMatch[1].toLowerCase()})` : 'Mini hotcakes (mini)';
+  }
+  return nombre;
+}
+
 async function computeOrderTotal(productos){
   const favs = await loadFavs();
   let total = 0;
@@ -1645,7 +1689,8 @@ async function computeOrderTotal(productos){
       total += p.cantidad * HOTCAKES_PRICE;
       continue;
     }
-    const fav = favs.find(f => f.name.toLowerCase() === p.nombre.toLowerCase());
+    const baseName = baseCatalogName(p.nombre);
+    const fav = favs.find(f => f.name.toLowerCase() === baseName.toLowerCase());
     total += fav ? calcLineAmount(p.cantidad, fav.price, fav.price2) : 0;
   }
   return total;
@@ -1693,13 +1738,19 @@ document.getElementById('hcAddBtn').onclick = () => {
   if(document.getElementById('hcMaple').checked) toppings.push('maple');
   if(document.getElementById('hcLechera').checked) toppings.push('lechera');
   if(document.getElementById('hcJalea').checked) toppings.push('jalea de fresa');
-  const name = toppings.length ? `Mini hotcakes (${toppings.join(' + ')})` : 'Mini hotcakes';
+  const tamano = document.getElementById('hcTamano').value === 'grande' ? 'grande' : 'mini';
+  const figura = document.getElementById('hcFigura').value;
+  let name = `Mini hotcakes ${tamano}`;
+  if(figura && figura !== 'redondo') name += ` figura ${figura}`;
+  if(toppings.length) name += ` (${toppings.join(' + ')})`;
   addOrIncrementProdRow(name, hcQty);
   showToast('Mini hotcakes agregados al pedido');
   document.getElementById('hcCajeta').checked = false;
   document.getElementById('hcMaple').checked = false;
   document.getElementById('hcLechera').checked = false;
   document.getElementById('hcJalea').checked = false;
+  document.getElementById('hcTamano').value = 'mini';
+  document.getElementById('hcFigura').value = 'redondo';
   hcQty = 1; document.getElementById('hcQty').textContent = '1';
 };
 
@@ -2349,7 +2400,8 @@ function catalogAmountSync(nombre, qty){
   if(!nombre) return 0;
   if(/^Mini hotcakes/i.test(nombre)) return qty*HOTCAKES_PRICE;
   const favs = favsCache || [];
-  const fav = favs.find(f => f.name.toLowerCase() === nombre.toLowerCase());
+  const baseName = baseCatalogName(nombre);
+  const fav = favs.find(f => f.name.toLowerCase() === baseName.toLowerCase());
   if(!fav) return 0;
   return calcLineAmount(qty, fav.price, fav.price2);
 }
