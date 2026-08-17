@@ -1516,7 +1516,7 @@ document.getElementById('menuDownloadBtn').onclick = async () => {
     }
     // esperar un frame extra para asegurar que el layout ya se acomodó con las fuentes finales
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-    const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#fdedf1', width: 1080 });
+    const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#fdedf1', width: 1080, letterRendering: true });
     const link = document.createElement('a');
     link.download = 'menu-el-sabor-de-mama.png';
     link.href = canvas.toDataURL('image/png');
@@ -2787,7 +2787,8 @@ function showReceiptModal(nombreTienda, visita, telefono){
         width: fullWidth,
         height: fullHeight,
         windowWidth: fullWidth,
-        windowHeight: fullHeight
+        windowHeight: fullHeight,
+        letterRendering: true
       });
       const { jsPDF } = window.jspdf;
       const pdfW = canvas.width/2;
@@ -2817,7 +2818,8 @@ function showReceiptModal(nombreTienda, visita, telefono){
         const fullHeight = node.scrollHeight;
         const canvas = await html2canvas(node, {
           scale: 2, backgroundColor: '#ffffff',
-          width: fullWidth, height: fullHeight, windowWidth: fullWidth, windowHeight: fullHeight
+          width: fullWidth, height: fullHeight, windowWidth: fullWidth, windowHeight: fullHeight,
+          letterRendering: true
         });
         const { jsPDF } = window.jspdf;
         const pdfW = canvas.width/2;
@@ -3159,7 +3161,8 @@ document.getElementById('qPdfBtn').onclick = async () => {
       width: fullWidth,
       height: fullHeight,
       windowWidth: fullWidth,
-      windowHeight: fullHeight
+      windowHeight: fullHeight,
+      letterRendering: true
     });
     const { jsPDF } = window.jspdf;
     const pdfW = canvas.width/2;
