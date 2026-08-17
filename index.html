@@ -1511,6 +1511,11 @@ document.getElementById('menuDownloadBtn').onclick = async () => {
     const extras = await loadMenuExtras();
     node = buildExportPoster(favs, extras);
     document.body.appendChild(node);
+    if (document.fonts && document.fonts.ready) {
+      await document.fonts.ready;
+    }
+    // esperar un frame extra para asegurar que el layout ya se acomodó con las fuentes finales
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#fdedf1', width: 1080 });
     const link = document.createElement('a');
     link.download = 'menu-el-sabor-de-mama.png';
