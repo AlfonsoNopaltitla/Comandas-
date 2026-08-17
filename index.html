@@ -680,7 +680,7 @@
           </select>
           <span class="mono" style="font-size:16px; color:var(--ink-soft);">(mismo precio)</span>
         </label>
-        <label class="hc-check" style="gap:10px;">
+        <label class="hc-check" style="gap:10px;" id="hcFiguraRow">
           Figura:
           <select id="hcFigura" style="font-family:'Space Mono',monospace; font-size:20px; padding:4px 6px; border-radius:6px; border:1.5px solid var(--line); background:var(--paper); color:var(--ink);">
             <option value="redondo">Redondo</option>
@@ -859,8 +859,9 @@
       <div class="menu-banner" id="mAntojitosBanner">Antojitos</div>
       <div class="menu-section" id="mAntojitos"></div>
 
-      <div class="menu-banner">Mini hotcakes</div>
+      <div class="menu-banner">Hotcakes</div>
       <div class="menu-section">
+        <div class="hint" style="color:#c05c76; margin:0 0 6px;">Tamaños: mini o grande &middot; Figuras: tigre u oso</div>
         <div class="hint" style="color:#c05c76; margin:0 0 6px;">Elige tu acompañamiento:</div>
         <div class="menu-item"><span class="mi-name" id="mToppings">Cajeta · Maple · Lechera · Jalea de fresa</span></div>
         <div class="menu-item"><span class="mi-price" id="mHcPrice">$25</span></div>
@@ -1139,9 +1140,9 @@ function calcLineAmount(qty, price, price2){
 // aparezcan disponibles para seleccionar en Pedidos y en Cotizar
 const CATALOG_SEED_KEY = 'catalogSeedV2Done';
 const CATALOG_SEED_ITEMS = [
-  {name:'Banderilla', price:20, price2:30, stock:0},
-  {name:'Mini hotcakes (mini)', price:25, stock:0},
-  {name:'Mini hotcakes (grande)', price:25, stock:0}
+  {name:'Banderilla de salchicha', price:20, price2:30, stock:0},
+  {name:'Hotcakes mini', price:25, stock:0},
+  {name:'Hotcakes grande', price:25, stock:0}
 ];
 async function seedCatalogOnce(){
   try{
@@ -1198,7 +1199,7 @@ async function saveFavs(list){
 }
 
 async function renderFavs(){
-  const favs = (await loadFavs()).filter(f => !/^Mini hotcakes/i.test(f.name));
+  const favs = (await loadFavs()).filter(f => !/^(Mini hotcakes|Hotcakes)\b/i.test(f.name));
   const el = document.getElementById('favList');
   el.innerHTML = '';
   if(favs.length === 0){
@@ -1390,14 +1391,14 @@ async function renderMenu(){
   document.getElementById('mTagline').textContent = extras.tagline;
 
   const listEl = document.getElementById('mProductList');
-  const visible = favs.filter(f => !f.oculto);
+  const visible = favs.filter(f => !f.oculto && !/^(Mini hotcakes|Hotcakes)\b/i.test(f.name));
   if(visible.length === 0){
     listEl.innerHTML = '<div class="menu-empty">Agrega productos desde la pestaña Inventario.</div>';
   } else {
     listEl.innerHTML = visible.map(f => `
       <div class="menu-item">
         <span class="mi-name">♥ ${escapeHtml(f.name)}</span>
-        <span class="mi-price">$${f.price}</span>
+        <span class="mi-price">$${f.price}${f.price2 ? ' · 2x$'+f.price2 : ''}</span>
       </div>
     `).join('');
   }
@@ -1671,12 +1672,13 @@ async function priceForProduct(nombre){
   return fav ? fav.price : 0;
 }
 // quita el tamaño/variante del nombre para encontrar el producto base en el catálogo
-// ej: "Mini hotcakes grande figura tigre (cajeta)" -> "Mini hotcakes (grande)"
+// ej: "Mini hotcakes grande figura tigre (cajeta)" -> "Hotcakes grande"
 function baseCatalogName(nombre){
   if(!nombre) return nombre;
   if(/^Mini hotcakes/i.test(nombre)){
     const tMatch = nombre.match(/^Mini hotcakes (mini|grande)/i);
-    return tMatch ? `Mini hotcakes (${tMatch[1].toLowerCase()})` : 'Mini hotcakes (mini)';
+    const tam = tMatch ? tMatch[1].toLowerCase() : 'mini';
+    return `Hotcakes ${tam}`;
   }
   return nombre;
 }
@@ -1730,6 +1732,18 @@ document.getElementById('pagaCon').addEventListener('input', () => {
 
 // ---------------- mini hotcakes special block ----------------
 let hcQty = 1;
+function updateHcFiguraVisibility(){
+  const tamano = document.getElementById('hcTamano').value;
+  const figuraRow = document.getElementById('hcFiguraRow');
+  if(tamano === 'grande'){
+    figuraRow.style.display = '';
+  } else {
+    figuraRow.style.display = 'none';
+    document.getElementById('hcFigura').value = 'redondo';
+  }
+}
+document.getElementById('hcTamano').onchange = updateHcFiguraVisibility;
+updateHcFiguraVisibility();
 document.getElementById('hcInc').onclick = () => { hcQty++; document.getElementById('hcQty').textContent = hcQty; };
 document.getElementById('hcDec').onclick = () => { if(hcQty>1){ hcQty--; document.getElementById('hcQty').textContent = hcQty; } };
 document.getElementById('hcAddBtn').onclick = () => {
@@ -1739,9 +1753,9 @@ document.getElementById('hcAddBtn').onclick = () => {
   if(document.getElementById('hcLechera').checked) toppings.push('lechera');
   if(document.getElementById('hcJalea').checked) toppings.push('jalea de fresa');
   const tamano = document.getElementById('hcTamano').value === 'grande' ? 'grande' : 'mini';
-  const figura = document.getElementById('hcFigura').value;
+  const figura = tamano === 'grande' ? document.getElementById('hcFigura').value : 'redondo';
   let name = `Mini hotcakes ${tamano}`;
-  if(figura && figura !== 'redondo') name += ` figura ${figura}`;
+  if(tamano === 'grande' && figura && figura !== 'redondo') name += ` figura ${figura}`;
   if(toppings.length) name += ` (${toppings.join(' + ')})`;
   addOrIncrementProdRow(name, hcQty);
   showToast('Mini hotcakes agregados al pedido');
@@ -1751,6 +1765,7 @@ document.getElementById('hcAddBtn').onclick = () => {
   document.getElementById('hcJalea').checked = false;
   document.getElementById('hcTamano').value = 'mini';
   document.getElementById('hcFigura').value = 'redondo';
+  updateHcFiguraVisibility();
   hcQty = 1; document.getElementById('hcQty').textContent = '1';
 };
 
