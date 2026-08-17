@@ -1527,12 +1527,16 @@ document.getElementById('menuDownloadBtn').onclick = async () => {
 // Builds a fixed-size, illustrated two-column poster (1080px wide) for
 // sharing on WhatsApp status / Facebook, with the logo circle and icons.
 function buildExportPoster(favs, extras){
-  const visible = favs.filter(f => !f.oculto);
+  const visible = favs.filter(f => !f.oculto && !/^(Mini hotcakes|Hotcakes)\b/i.test(f.name));
+  const hcMini = favs.find(f => /^(Mini hotcakes|Hotcakes) mini/i.test(f.name));
+  const hcGrande = favs.find(f => /^(Mini hotcakes|Hotcakes) grande/i.test(f.name));
+  const hcMiniPrice = hcMini ? hcMini.price : (extras.hcPrice||0);
+  const hcGrandePrice = hcGrande ? hcGrande.price : (extras.hcPrice||0);
   const itemsHtml = visible.length
     ? visible.map(f => `
         <div class="mex-item">
           <span>♥ ${escapeHtml(f.name)}</span>
-          <span class="mex-price">$${f.price}</span>
+          <span class="mex-price">$${f.price}${f.price2 ? ' · 2x$'+f.price2 : ''}</span>
         </div>`).join('')
     : '<div class="mex-item"><span>Agrega productos en Inventario</span></div>';
 
@@ -1575,9 +1579,11 @@ function buildExportPoster(favs, extras){
         </div>
         <div class="mex-col">
           ${antojitoHtml}
-          <div class="mex-banner" style="margin-top:${antojitoHtml?'28px':'0'};">${ICONS.pancakes(34)}Mini hotcakes</div>
+          <div class="mex-banner" style="margin-top:${antojitoHtml?'28px':'0'};">${ICONS.pancakes(34)}Hotcakes</div>
           <div class="mex-toppings">Elige tu acompañamiento:<br><strong>${escapeHtml(toppings || 'Cajeta · Maple · Lechera · Jalea de fresa')}</strong></div>
-          <div class="mex-item"><span>Precio</span><span class="mex-price">$${extras.hcPrice||0}</span></div>
+          <div class="mex-item"><span>Mini hotcakes</span><span class="mex-price">$${hcMiniPrice}</span></div>
+          <div class="mex-item"><span>Hotcake grande</span><span class="mex-price">$${hcGrandePrice}</span></div>
+          <div class="mex-toppings">En grande puedes elegir figura: <strong>tradicional (redondo), tigre u osito</strong></div>
         </div>
       </div>
 
