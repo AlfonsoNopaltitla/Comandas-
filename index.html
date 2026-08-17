@@ -575,13 +575,13 @@
   /* ---- EXPORT POSTER (offscreen, fixed size for sharing) ---- */
   .mex-shell{
     position:fixed; left:-99999px; top:0; width:1080px; background:#fdedf1; color:#5c1f2c;
-    font-family:'Libre Franklin',sans-serif; padding:56px;
+    font-family:Arial, Helvetica, sans-serif; padding:56px;
   }
   .mex-border{ border:4px solid #e58ba0; border-radius:26px; padding:44px 44px 0; overflow:hidden; }
 
   .mex-header-row{ display:flex; align-items:center; gap:18px; margin-bottom:6px; }
   .mex-side-text{
-    flex:1; font-family:'Libre Franklin',sans-serif; font-style:italic; font-size:21px;
+    flex:1; font-family:Arial, Helvetica, sans-serif; font-style:italic; font-size:21px;
     line-height:1.5; color:#5c1f2c; text-align:center;
   }
   .mex-side-text .accent{ color:#e07a95; font-weight:700; font-style:normal; }
@@ -1546,7 +1546,7 @@ function buildExportPoster(favs, extras){
     : '<div class="mex-item"><span>Agrega productos en Inventario</span></div>';
 
   const antojitoHtml = (extras.antojitoName && extras.antojitoName.trim()) ? `
-    <div class="mex-banner">${ICONS.chili(30)}Antojitos</div>
+    <div class="mex-banner">${ICONS.chili(30)}<span>Antojitos</span></div>
     <div class="mex-item">
       <span>♥ ${escapeHtml(extras.antojitoName)}</span>
       <span class="mex-price">$${extras.antojitoPrice||0}</span>
@@ -1564,13 +1564,13 @@ function buildExportPoster(favs, extras){
       <div class="mex-header-row">
         <div class="mex-side-text">
           <div class="mex-side-heart">${ICONS.heart(30,'#fbd8de','#e07a95')}</div>
-          Hechos con <span class="accent">amor,</span><br>para endulzar tus días
+          <p style="margin:0;">Hechos con <span class="accent">amor,</span><br>para endulzar tus días</p>
         </div>
         <div class="mex-logo-circle">
           <img src="${LOGO_DATA_URI}" alt="El Sabor de Mamá">
         </div>
         <div class="mex-side-text">
-          Cada postre es preparado con los mejores <span class="accent">ingredientes</span> y el toque especial <span class="accent">de mamá.</span>
+          <p style="margin:0;">Cada postre es preparado con los mejores <span class="accent">ingredientes</span> y el toque especial <span class="accent">de mamá.</span></p>
           <div class="mex-side-heart" style="margin-top:6px;">${ICONS.heart(30,'#fbd8de','#e07a95')}</div>
         </div>
       </div>
@@ -1579,12 +1579,12 @@ function buildExportPoster(favs, extras){
 
       <div class="mex-grid">
         <div class="mex-col">
-          <div class="mex-banner">${ICONS.heart(26,'#fff','#fff8f8')}Gelatinas y postres</div>
+          <div class="mex-banner">${ICONS.heart(26,'#fff','#fff8f8')}<span>Gelatinas y postres</span></div>
           ${itemsHtml}
         </div>
         <div class="mex-col">
           ${antojitoHtml}
-          <div class="mex-banner" style="margin-top:${antojitoHtml?'28px':'0'};">${ICONS.pancakes(34)}Hotcakes</div>
+          <div class="mex-banner" style="margin-top:${antojitoHtml?'28px':'0'};">${ICONS.pancakes(34)}<span>Hotcakes</span></div>
           <div class="mex-toppings">Elige tu acompañamiento:<br><strong>${escapeHtml(toppings || 'Cajeta · Maple · Lechera · Jalea de fresa')}</strong></div>
           <div class="mex-item"><span>Mini hotcakes</span><span class="mex-price">$${hcMiniPrice}</span></div>
           <div class="mex-item"><span>Hotcake grande</span><span class="mex-price">$${hcGrandePrice}</span></div>
@@ -2856,7 +2856,7 @@ function showReceiptModal(nombreTienda, visita, telefono){
 
 function buildReceiptPoster(nombreTienda, visita){
   const wrap = document.createElement('div');
-  wrap.style.cssText = 'position:fixed; left:-99999px; top:0; width:1080px; background:#ffffff; color:#241f18; font-family:"Libre Franklin",sans-serif; padding:0;';
+  wrap.style.cssText = 'position:fixed; left:-99999px; top:0; width:1080px; background:#ffffff; color:#241f18; font-family:Arial, Helvetica, sans-serif; padding:0;';
 
   const extras = menuExtrasCache || DEFAULT_MENU_EXTRAS;
   const phones = [extras.phone1, extras.phone2].filter(p => p && p.trim());
@@ -3178,7 +3178,7 @@ document.getElementById('qPdfBtn').onclick = async () => {
 
 function buildQuotePoster({ cliente, fecha, tam, yieldPer, lines, descPct, subtotal, total, totalPzas }){
   const wrap = document.createElement('div');
-  wrap.style.cssText = 'position:fixed; left:-99999px; top:0; width:1080px; background:#ffffff; color:#241f18; font-family:"Libre Franklin",sans-serif; padding:0;';
+  wrap.style.cssText = 'position:fixed; left:-99999px; top:0; width:1080px; background:#ffffff; color:#241f18; font-family:Arial, Helvetica, sans-serif; padding:0;';
   const rowsHtml = lines.map(l => `
     <tr>
       <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; word-break:break-word;">${escapeHtml(l.nombre)}${l.precio2 ? ' <span style=\"font-size:14px; color:#c05c76;\">(2x$'+l.precio2.toFixed(0)+')</span>' : ''}</td>
