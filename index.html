@@ -910,6 +910,14 @@
         <select id="qVasoTam">
           <option value="8">Vaso de 8 oz</option>
           <option value="6">Vaso de 6 oz</option>
+          <option value="charola">Charola individual</option>
+        </select>
+      </div>
+      <div class="inv-add-row">
+        <select id="qGelatinaTipo">
+          <option value="agua">Gelatina de agua</option>
+          <option value="leche">Gelatina de leche</option>
+          <option value="mixta">Mixta (agua y leche)</option>
         </select>
       </div>
     </div>
@@ -3138,28 +3146,50 @@ document.getElementById('qPdfBtn').onclick = async () => {
     const cfg = quoteCfgCache || DEFAULT_QUOTE_CFG;
     const tam = document.getElementById('qVasoTam').value;
     const yieldPer = tam==='8' ? cfg.yield8 : cfg.yield6;
+    const gelatinaTipo = document.getElementById('qGelatinaTipo').value;
     const fecha = document.getElementById('qFecha').value || new Date().toISOString().slice(0,10);
     const descPct = parseFloat(document.getElementById('qDescPct').value)||0;
     const subtotal = lines.reduce((s,l)=>s+calcLineAmount(l.cantidad, l.precio, l.precio2),0);
     const total = subtotal * (1 - descPct/100);
     const totalPzas = lines.reduce((s,l)=>s+l.cantidad,0);
 
-    node = buildQuotePoster({ cliente, fecha, tam, yieldPer, lines, descPct, subtotal, total, totalPzas });
+    node = buildQuotePoster({ cliente, fecha, tam, yieldPer, gelatinaTipo, lines, descPct, subtotal, total, totalPzas });
     document.body.appendChild(node);
+    // cargar explícitamente cada fuente/tamaño usado en el póster: si el navegador
+    // no ha usado antes esa combinación, document.fonts.ready puede resolver
+    // "listo" sin que la fuente esté realmente disponible, y html2canvas termina
+    // dibujando el texto con métricas equivocadas (letras montadas/pegadas).
+    if (document.fonts && document.fonts.load) {
+      try{
+        await Promise.all([
+          document.fonts.load('44px "Yellowtail"'),
+          document.fonts.load('36px "Bebas Neue"'),
+          document.fonts.load('26px "Bebas Neue"'),
+          document.fonts.load('20px "Bebas Neue"'),
+          document.fonts.load('32px "Bebas Neue"'),
+          document.fonts.load('14px "Space Mono"'),
+          document.fonts.load('15px "Space Mono"'),
+          document.fonts.load('16px "Space Mono"'),
+          document.fonts.load('20px "Space Mono"'),
+        ]);
+      }catch(e){ /* si falla la precarga, seguimos con document.fonts.ready */ }
+    }
     if (document.fonts && document.fonts.ready) {
       await document.fonts.ready;
     }
-    // esperar un frame extra para asegurar que el layout ya se acomodó con las fuentes finales
+    // esperar dos frames extra para asegurar que el layout ya se acomodó con las fuentes finales
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     const fullWidth = node.scrollWidth;
     const fullHeight = node.scrollHeight;
     const canvas = await html2canvas(node, {
-      scale: 1,
+      scale: 2,
       backgroundColor: '#ffffff',
       width: fullWidth,
       height: fullHeight,
       windowWidth: fullWidth,
       windowHeight: fullHeight,
+      useCORS: true,
+      letterRendering: true,
     });
     const { jsPDF } = window.jspdf;
     const pdfW = canvas.width;
@@ -3176,43 +3206,48 @@ document.getElementById('qPdfBtn').onclick = async () => {
   btn.disabled = false; btn.textContent = 'Descargar cotización en PDF';
 };
 
-function buildQuotePoster({ cliente, fecha, tam, yieldPer, lines, descPct, subtotal, total, totalPzas }){
+function buildQuotePoster({ cliente, fecha, tam, yieldPer, gelatinaTipo, lines, descPct, subtotal, total, totalPzas }){
   const wrap = document.createElement('div');
-  wrap.style.cssText = 'position:fixed; left:-99999px; top:0; width:1080px; background:#ffffff; color:#241f18; font-family:Arial, Helvetica, sans-serif; padding:0;';
+  wrap.style.cssText = 'position:fixed; left:-99999px; top:0; width:1080px; background:#ffffff; color:#241f18; font-family:Arial, Helvetica, sans-serif; letter-spacing:normal; word-spacing:normal; padding:0;';
+
+  const presentacionLabel = tam==='charola' ? 'Charola individual' : `Vaso de ${tam} oz`;
+  const tipoLabelMap = { agua: 'Gelatina de agua', leche: 'Gelatina de leche', mixta: 'Mixta (agua y leche)' };
+  const tipoLabel = tipoLabelMap[gelatinaTipo] || 'Gelatina de agua';
+
   const rowsHtml = lines.map(l => `
     <tr>
-      <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; word-break:break-word;">${escapeHtml(l.nombre)}${l.precio2 ? ' <span style=\"font-size:14px; color:#c05c76;\">(2x$'+l.precio2.toFixed(0)+')</span>' : ''}</td>
-      <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; text-align:center;">${l.cantidad}</td>
-      <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; text-align:right;">$${l.precio.toFixed(2)}</td>
-      <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; text-align:right;">$${calcLineAmount(l.cantidad, l.precio, l.precio2).toFixed(2)}</td>
+      <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; letter-spacing:normal; word-spacing:normal; word-break:break-word;">${escapeHtml(l.nombre)}${l.precio2 ? ' <span style=\"font-size:14px; color:#c05c76;\">(2x$'+l.precio2.toFixed(0)+')</span>' : ''}</td>
+      <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; letter-spacing:normal; text-align:center;">${l.cantidad}</td>
+      <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; letter-spacing:normal; text-align:right;">$${l.precio.toFixed(2)}</td>
+      <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; letter-spacing:normal; text-align:right;">$${calcLineAmount(l.cantidad, l.precio, l.precio2).toFixed(2)}</td>
     </tr>`).join('');
 
   wrap.innerHTML = `
-    <div style="padding:50px 56px; border:6px solid #e07a95; box-sizing:border-box; width:1080px; overflow:hidden;">
+    <div style="padding:50px 56px; border:6px solid #e07a95; box-sizing:border-box; width:1080px; overflow:hidden; letter-spacing:normal; word-spacing:normal;">
       <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:8px;">
         <div style="display:flex; align-items:center; gap:16px; min-width:0;">
           <img src="${LOGO_DATA_URI}" style="width:100px; height:100px; object-fit:contain; flex-shrink:0;">
           <div style="min-width:0;">
-            <div style="font-family:'Yellowtail',cursive; font-size:44px; color:#3a1420; line-height:1; white-space:nowrap;">El Sabor de Mamá</div>
+            <div style="font-family:'Yellowtail',cursive; font-size:44px; color:#3a1420; line-height:1; letter-spacing:normal; white-space:nowrap;">El Sabor de Mamá</div>
             <div style="font-family:'Space Mono',monospace; font-size:14px; color:#c05c76; letter-spacing:1.5px; text-transform:uppercase; white-space:nowrap;">Gelatinas &amp; postres caseros</div>
           </div>
         </div>
         <div style="text-align:right; flex-shrink:0;">
           <div style="font-family:'Bebas Neue',sans-serif; font-size:36px; letter-spacing:2px; color:#3a1420;">COTIZACIÓN</div>
-          <div style="font-family:'Space Mono',monospace; font-size:15px; color:#5a5347; white-space:nowrap;">Fecha: ${fecha}</div>
+          <div style="font-family:'Space Mono',monospace; font-size:15px; color:#5a5347; letter-spacing:normal; white-space:nowrap;">Fecha: ${fecha}</div>
         </div>
       </div>
 
       <div style="margin-top:30px; padding:16px 20px; background:#fdedf1; border-radius:10px;">
         <div style="font-family:'Space Mono',monospace; font-size:15px; color:#c05c76; text-transform:uppercase; letter-spacing:1px;">Cliente</div>
-        <div style="font-family:'Bebas Neue',sans-serif; font-size:26px; color:#3a1420;">${escapeHtml(cliente || 'Cliente')}</div>
+        <div style="font-family:'Bebas Neue',sans-serif; font-size:26px; color:#3a1420; letter-spacing:normal;">${escapeHtml(cliente || 'Cliente')}</div>
       </div>
 
-      <div style="margin-top:16px; font-family:'Space Mono',monospace; font-size:16px; color:#5a5347;">
-        Presentación cotizada: <strong>vaso de ${tam} oz</strong>
+      <div style="margin-top:16px; font-family:Arial, Helvetica, sans-serif; font-size:16px; letter-spacing:normal; word-spacing:normal; color:#5a5347;">
+        Presentación cotizada: <strong>${presentacionLabel}</strong>&nbsp;&nbsp;|&nbsp;&nbsp; Tipo de gelatina: <strong>${tipoLabel}</strong>
       </div>
 
-      <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin-top:24px;">
+      <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin-top:24px; letter-spacing:normal;">
         <colgroup><col style="width:46%"><col style="width:16%"><col style="width:19%"><col style="width:19%"></colgroup>
         <thead>
           <tr style="background:#e07a95; color:#fff8f8;">
