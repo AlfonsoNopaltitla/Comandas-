@@ -3155,29 +3155,9 @@ document.getElementById('qPdfBtn').onclick = async () => {
 
     node = buildQuotePoster({ cliente, fecha, tam, yieldPer, gelatinaTipo, lines, descPct, subtotal, total, totalPzas });
     document.body.appendChild(node);
-    // cargar explícitamente cada fuente/tamaño usado en el póster: si el navegador
-    // no ha usado antes esa combinación, document.fonts.ready puede resolver
-    // "listo" sin que la fuente esté realmente disponible, y html2canvas termina
-    // dibujando el texto con métricas equivocadas (letras montadas/pegadas).
-    if (document.fonts && document.fonts.load) {
-      try{
-        await Promise.all([
-          document.fonts.load('44px "Yellowtail"'),
-          document.fonts.load('36px "Bebas Neue"'),
-          document.fonts.load('26px "Bebas Neue"'),
-          document.fonts.load('20px "Bebas Neue"'),
-          document.fonts.load('32px "Bebas Neue"'),
-          document.fonts.load('14px "Space Mono"'),
-          document.fonts.load('15px "Space Mono"'),
-          document.fonts.load('16px "Space Mono"'),
-          document.fonts.load('20px "Space Mono"'),
-        ]);
-      }catch(e){ /* si falla la precarga, seguimos con document.fonts.ready */ }
-    }
-    if (document.fonts && document.fonts.ready) {
-      await document.fonts.ready;
-    }
-    // esperar dos frames extra para asegurar que el layout ya se acomodó con las fuentes finales
+    // el póster usa solo fuentes del sistema (Arial/Helvetica), así que no dependemos
+    // de que se termine de descargar ninguna fuente web antes de capturar el canvas —
+    // eso es justo lo que causaba que el texto saliera pegado/montado en el PDF.
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     const fullWidth = node.scrollWidth;
     const fullHeight = node.scrollHeight;
@@ -3208,66 +3188,73 @@ document.getElementById('qPdfBtn').onclick = async () => {
 
 function buildQuotePoster({ cliente, fecha, tam, yieldPer, gelatinaTipo, lines, descPct, subtotal, total, totalPzas }){
   const wrap = document.createElement('div');
-  wrap.style.cssText = 'position:fixed; left:-99999px; top:0; width:1080px; background:#ffffff; color:#241f18; font-family:Arial, Helvetica, sans-serif; letter-spacing:normal; word-spacing:normal; padding:0;';
+  const SYS = "Arial, Helvetica, sans-serif";
+  wrap.style.cssText = `position:fixed; left:-99999px; top:0; width:1080px; background:#ffffff; color:#241f18; font-family:${SYS}; letter-spacing:normal; word-spacing:normal; padding:0;`;
 
   const presentacionLabel = tam==='charola' ? 'Charola individual' : `Vaso de ${tam} oz`;
   const tipoLabelMap = { agua: 'Gelatina de agua', leche: 'Gelatina de leche', mixta: 'Mixta (agua y leche)' };
   const tipoLabel = tipoLabelMap[gelatinaTipo] || 'Gelatina de agua';
+  const factor = 1 - (descPct||0)/100;
 
-  const rowsHtml = lines.map(l => `
+  const rowsHtml = lines.map(l => {
+    const precioDesc = l.precio * factor;
+    return `
     <tr>
-      <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; letter-spacing:normal; word-spacing:normal; word-break:break-word;">${escapeHtml(l.nombre)}${l.precio2 ? ' <span style=\"font-size:14px; color:#c05c76;\">(2x$'+l.precio2.toFixed(0)+')</span>' : ''}</td>
-      <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; letter-spacing:normal; text-align:center;">${l.cantidad}</td>
-      <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; letter-spacing:normal; text-align:right;">$${l.precio.toFixed(2)}</td>
-      <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; letter-spacing:normal; text-align:right;">$${calcLineAmount(l.cantidad, l.precio, l.precio2).toFixed(2)}</td>
-    </tr>`).join('');
+      <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; font-family:${SYS}; letter-spacing:normal; word-spacing:normal; word-break:break-word;">${escapeHtml(l.nombre)}${l.precio2 ? ' <span style="font-size:14px; color:#c05c76;">(2x$'+l.precio2.toFixed(0)+')</span>' : ''}</td>
+      <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; font-family:${SYS}; letter-spacing:normal; text-align:center;">${l.cantidad}</td>
+      <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; font-family:${SYS}; letter-spacing:normal; text-align:right;">$${l.precio.toFixed(2)}</td>
+      <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; font-family:${SYS}; letter-spacing:normal; text-align:right; color:${descPct>0?'#5b7a52':'#9a9284'};">${descPct>0 ? '$'+precioDesc.toFixed(2) : '—'}</td>
+      <td style="padding:14px 10px; border-bottom:1px solid #e6dccb; font-size:22px; font-family:${SYS}; letter-spacing:normal; text-align:right;">$${calcLineAmount(l.cantidad, l.precio, l.precio2).toFixed(2)}</td>
+    </tr>`;
+  }).join('');
 
   wrap.innerHTML = `
-    <div style="padding:50px 56px; border:6px solid #e07a95; box-sizing:border-box; width:1080px; overflow:hidden; letter-spacing:normal; word-spacing:normal;">
+    <div style="padding:50px 56px; border:6px solid #e07a95; box-sizing:border-box; width:1080px; overflow:hidden; font-family:${SYS}; letter-spacing:normal; word-spacing:normal;">
       <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:8px;">
         <div style="display:flex; align-items:center; gap:16px; min-width:0;">
           <img src="${LOGO_DATA_URI}" style="width:100px; height:100px; object-fit:contain; flex-shrink:0;">
           <div style="min-width:0;">
-            <div style="font-family:'Yellowtail',cursive; font-size:44px; color:#3a1420; line-height:1; letter-spacing:normal; white-space:nowrap;">El Sabor de Mamá</div>
-            <div style="font-family:'Space Mono',monospace; font-size:14px; color:#c05c76; letter-spacing:1.5px; text-transform:uppercase; white-space:nowrap;">Gelatinas &amp; postres caseros</div>
+            <div style="font-family:${SYS}; font-weight:bold; font-style:italic; font-size:38px; color:#3a1420; line-height:1.1; letter-spacing:normal; white-space:nowrap;">El Sabor de Mamá</div>
+            <div style="font-family:${SYS}; font-size:14px; color:#c05c76; letter-spacing:1px; text-transform:uppercase; white-space:nowrap;">Gelatinas &amp; postres caseros</div>
           </div>
         </div>
         <div style="text-align:right; flex-shrink:0;">
-          <div style="font-family:'Bebas Neue',sans-serif; font-size:36px; letter-spacing:2px; color:#3a1420;">COTIZACIÓN</div>
-          <div style="font-family:'Space Mono',monospace; font-size:15px; color:#5a5347; letter-spacing:normal; white-space:nowrap;">Fecha: ${fecha}</div>
+          <div style="font-family:${SYS}; font-weight:bold; font-size:32px; letter-spacing:1px; color:#3a1420;">COTIZACIÓN</div>
+          <div style="font-family:${SYS}; font-size:15px; color:#5a5347; letter-spacing:normal; white-space:nowrap;">Fecha: ${fecha}</div>
         </div>
       </div>
 
       <div style="margin-top:30px; padding:16px 20px; background:#fdedf1; border-radius:10px;">
-        <div style="font-family:'Space Mono',monospace; font-size:15px; color:#c05c76; text-transform:uppercase; letter-spacing:1px;">Cliente</div>
-        <div style="font-family:'Bebas Neue',sans-serif; font-size:26px; color:#3a1420; letter-spacing:normal;">${escapeHtml(cliente || 'Cliente')}</div>
+        <div style="font-family:${SYS}; font-size:14px; color:#c05c76; text-transform:uppercase; letter-spacing:0.5px;">Cliente</div>
+        <div style="font-family:${SYS}; font-weight:bold; font-size:24px; color:#3a1420; letter-spacing:normal;">${escapeHtml(cliente || 'Cliente')}</div>
       </div>
 
-      <div style="margin-top:16px; font-family:Arial, Helvetica, sans-serif; font-size:16px; letter-spacing:normal; word-spacing:normal; color:#5a5347;">
+      <div style="margin-top:16px; font-family:${SYS}; font-size:16px; letter-spacing:normal; word-spacing:normal; color:#5a5347;">
         Presentación cotizada: <strong>${presentacionLabel}</strong>&nbsp;&nbsp;|&nbsp;&nbsp; Tipo de gelatina: <strong>${tipoLabel}</strong>
       </div>
 
-      <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin-top:24px; letter-spacing:normal;">
-        <colgroup><col style="width:46%"><col style="width:16%"><col style="width:19%"><col style="width:19%"></colgroup>
+      <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin-top:24px; letter-spacing:normal; font-family:${SYS};">
+        <colgroup><col style="width:32%"><col style="width:10%"><col style="width:18%"><col style="width:18%"><col style="width:22%"></colgroup>
         <thead>
           <tr style="background:#e07a95; color:#fff8f8;">
-            <th style="padding:12px 10px; text-align:left; font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:1px;">Producto</th>
-            <th style="padding:12px 10px; font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:1px;">Cant.</th>
-            <th style="padding:12px 10px; text-align:right; font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:1px;">P. Unitario</th>
-            <th style="padding:12px 10px; text-align:right; font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:1px;">Importe</th>
+            <th style="padding:12px 8px; text-align:left; font-family:${SYS}; font-size:17px; letter-spacing:0.5px;">Producto</th>
+            <th style="padding:12px 8px; font-family:${SYS}; font-size:17px; letter-spacing:0.5px;">Cant.</th>
+            <th style="padding:12px 8px; text-align:right; font-family:${SYS}; font-size:17px; letter-spacing:0.5px;">P. Unitario</th>
+            <th style="padding:12px 8px; text-align:right; font-family:${SYS}; font-size:17px; letter-spacing:0.5px;">P. c/desc.</th>
+            <th style="padding:12px 8px; text-align:right; font-family:${SYS}; font-size:17px; letter-spacing:0.5px;">Importe</th>
           </tr>
         </thead>
         <tbody>${rowsHtml}</tbody>
       </table>
 
-      <div style="margin-top:16px; margin-left:auto; width:360px; font-family:'Space Mono',monospace; font-size:20px;">
+      <div style="margin-top:16px; margin-left:auto; width:360px; font-family:${SYS}; font-size:19px;">
         <div style="display:flex; justify-content:space-between; padding:6px 0;"><span>Piezas totales</span><span>${totalPzas}</span></div>
         <div style="display:flex; justify-content:space-between; padding:6px 0;"><span>Subtotal</span><span>$${subtotal.toFixed(2)}</span></div>
         <div style="display:flex; justify-content:space-between; padding:6px 0;"><span>Descuento mayoreo</span><span>${descPct}%</span></div>
-        <div style="display:flex; justify-content:space-between; padding:14px 0 0; border-top:2px dashed #e6b7c2; margin-top:6px; font-family:'Bebas Neue',sans-serif; font-size:32px; color:#3a1420;"><span>TOTAL</span><span>$${total.toFixed(2)}</span></div>
+        <div style="display:flex; justify-content:space-between; padding:14px 0 0; border-top:2px dashed #e6b7c2; margin-top:6px; font-family:${SYS}; font-weight:bold; font-size:30px; color:#3a1420;"><span>TOTAL</span><span>$${total.toFixed(2)}</span></div>
       </div>
 
-      <div style="margin-top:36px; padding-top:20px; border-top:2px dashed #e6b7c2; font-family:'Space Mono',monospace; font-size:14px; color:#5a5347;">
+      <div style="margin-top:36px; padding-top:20px; border-top:2px dashed #e6b7c2; font-family:${SYS}; font-size:14px; color:#5a5347;">
         Cotización válida por 7 días.<br>
         Para confirmar tu pedido, escríbenos por WhatsApp. ¡Gracias por tu preferencia! ♥
       </div>
