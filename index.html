@@ -3169,7 +3169,6 @@ document.getElementById('qPdfBtn').onclick = async () => {
       windowWidth: fullWidth,
       windowHeight: fullHeight,
       useCORS: true,
-      letterRendering: true,
     });
     const { jsPDF } = window.jspdf;
     const pdfW = canvas.width;
@@ -3229,8 +3228,9 @@ function buildQuotePoster({ cliente, fecha, tam, yieldPer, gelatinaTipo, lines, 
         <div style="font-family:${SYS}; font-weight:bold; font-size:24px; color:#3a1420; letter-spacing:normal;">${escapeHtml(cliente || 'Cliente')}</div>
       </div>
 
-      <div style="margin-top:16px; font-family:${SYS}; font-size:16px; letter-spacing:normal; word-spacing:normal; color:#5a5347;">
-        Presentación cotizada: <strong>${presentacionLabel}</strong>&nbsp;&nbsp;|&nbsp;&nbsp; Tipo de gelatina: <strong>${tipoLabel}</strong>
+      <div style="margin-top:16px; display:flex; gap:28px; flex-wrap:wrap; font-family:${SYS}; font-size:16px; letter-spacing:normal; word-spacing:normal; color:#5a5347;">
+        <div>Presentación cotizada:<br><span style="font-weight:bold; color:#3a1420; font-size:18px;">${presentacionLabel}</span></div>
+        <div>Tipo de gelatina:<br><span style="font-weight:bold; color:#3a1420; font-size:18px;">${tipoLabel}</span></div>
       </div>
 
       <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin-top:24px; letter-spacing:normal; font-family:${SYS};">
